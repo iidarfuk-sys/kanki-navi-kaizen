@@ -1,0 +1,1489 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>換気ナビ 観測画面改善案</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@500;600;700&family=BIZ+UDPGothic:wght@400;700&display=swap">
+<style>
+/* レイアウト：スマホ縦1列。固定ヘッダー（装置の切替・提案ポイント）→ 観測グラフ（最上部・0時始まり・凡例はグラフの下）→ 今の状態 → 1日のまとめ（1画面に収める）→ この試作について。PCでは幅880pxで中央 */
+:root{
+  /* 色：農ポリのような緑がかった白のニュートラルに、茄子紺のアクセント。データの色は系統ごとに固定 */
+  --bg:#ecf0ed; --surface:#ffffff; --surface-2:#f4f7f5; --ink:#1a2220; --muted:#59665f; --faint:#8a968f;
+  --line:#d8dfdb; --grid:#e8edea; --grid-strong:#cdd6d1; --night:rgba(61,47,124,.07);
+  --head-bg:#2e2459; --head-ink:#ffffff; --head-muted:#cbc3ee; --head-field:rgba(255,255,255,.14); --head-line:rgba(255,255,255,.3);
+  --accent:#3d2f7c; --accent-ink:#ffffff; --accent-weak:#ece8f8;
+  --up:#c2255c; --down:#1d5fd0; --ok:#2b8a3e; --ok-weak:#e2f3e5; --warn:#c92a2a; --warn-weak:#fbe9e9;
+  --note-bg:#fff5d3; --note-line:#e3bb4f; --note-ink:#4a3a06; --note-num:#a36f0a;
+  --c-temp:#1d5fd0; --c-vent:#ec6a00; --c-heat:#dc2f2f; --c-suka:#8e44ad; --c-hd:#2b8a3e; --c-sol:#e3a000;
+  --c-co2:#56627a; --c-cur:#9a5b2e; --c-v1:#0b7285; --c-v2:#3bb8cf; --c-lsol:#eea300; --c-ldh:#0fa37c;
+  --hd-band:rgba(43,138,62,.1); --over:rgba(236,106,0,.2); --cursor:#1a2220;
+  --shadow:0 1px 2px rgba(26,34,32,.05),0 6px 18px rgba(26,34,32,.05);
+  /* 文字：本文はUDゴシック（読みやすさ優先）、計測値は計器らしい数字の書体 */
+  --font-ui:"BIZ UDPGothic","Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic UI",Meiryo,system-ui,sans-serif;
+  --font-num:"Barlow","BIZ UDPGothic","Hiragino Sans",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0e1211; --surface:#161b1a; --surface-2:#1d2322; --ink:#e7ecea; --muted:#a0ada7; --faint:#75827c;
+    --line:#2a3230; --grid:#212927; --grid-strong:#34403c; --night:rgba(150,140,255,.085);
+    --head-bg:#1e1838; --head-ink:#f3f0ff; --head-muted:#b3a9e0; --head-field:rgba(255,255,255,.1); --head-line:rgba(255,255,255,.22);
+    --accent:#b9a8f5; --accent-ink:#17112e; --accent-weak:#29234a;
+    --up:#ff7aa2; --down:#74a7ff; --ok:#5fd17a; --ok-weak:#163322; --warn:#ff7b7b; --warn-weak:#3a1a1a;
+    --note-bg:#29230f; --note-line:#7d6420; --note-ink:#f2e2ad; --note-num:#f0c95a;
+    --c-temp:#6aa2ff; --c-vent:#ff9a3d; --c-heat:#ff6b6b; --c-suka:#c792ea; --c-hd:#5fd17a; --c-sol:#ffc94d;
+    --c-co2:#a9b5c7; --c-cur:#d99a64; --c-v1:#2fc4dd; --c-v2:#9be7f3; --c-lsol:#ffc94d; --c-ldh:#3ddbb0;
+    --hd-band:rgba(95,209,122,.12); --over:rgba(255,154,61,.24); --cursor:#e7ecea; --shadow:none;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0e1211; --surface:#161b1a; --surface-2:#1d2322; --ink:#e7ecea; --muted:#a0ada7; --faint:#75827c;
+  --line:#2a3230; --grid:#212927; --grid-strong:#34403c; --night:rgba(150,140,255,.085);
+  --head-bg:#1e1838; --head-ink:#f3f0ff; --head-muted:#b3a9e0; --head-field:rgba(255,255,255,.1); --head-line:rgba(255,255,255,.22);
+  --accent:#b9a8f5; --accent-ink:#17112e; --accent-weak:#29234a;
+  --up:#ff7aa2; --down:#74a7ff; --ok:#5fd17a; --ok-weak:#163322; --warn:#ff7b7b; --warn-weak:#3a1a1a;
+  --note-bg:#29230f; --note-line:#7d6420; --note-ink:#f2e2ad; --note-num:#f0c95a;
+  --c-temp:#6aa2ff; --c-vent:#ff9a3d; --c-heat:#ff6b6b; --c-suka:#c792ea; --c-hd:#5fd17a; --c-sol:#ffc94d;
+  --c-co2:#a9b5c7; --c-cur:#d99a64; --c-v1:#2fc4dd; --c-v2:#9be7f3; --c-lsol:#ffc94d; --c-ldh:#3ddbb0;
+  --hd-band:rgba(95,209,122,.12); --over:rgba(255,154,61,.24); --cursor:#e7ecea; --shadow:none;
+  color-scheme:dark;
+}
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-ui);font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:40;background:var(--head-bg)}
+button,select,input{font:inherit;color:inherit}
+button{cursor:pointer;touch-action:manipulation}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* ヘッダー */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:30;background:var(--head-bg);color:var(--head-ink)}
+.top-in{max-width:880px;margin:0 auto;padding-block:8px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;align-items:center;gap:10px}
+.dev{display:flex;align-items:center;gap:8px;flex:1;min-width:0}
+.dev label{font-size:12px;color:var(--head-muted);white-space:nowrap}
+.selw{position:relative;min-width:0;flex:0 1 240px}
+.selw::after{content:"";position:absolute;right:13px;top:50%;width:7px;height:7px;border-right:2px solid var(--head-ink);border-bottom:2px solid var(--head-ink);transform:translateY(-70%) rotate(45deg);pointer-events:none}
+.selw select{width:100%;appearance:none;-webkit-appearance:none;background:var(--head-field);border:1px solid var(--head-line);color:var(--head-ink);border-radius:10px;padding:7px 32px 7px 12px;font-weight:700;font-size:15px}
+select option{color:var(--ink);background:var(--surface)}
+.pill{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--head-line);background:transparent;color:var(--head-ink);border-radius:999px;padding:6px 12px 6px 8px;font-size:13px;font-weight:700;white-space:nowrap}
+.pill i{width:28px;height:16px;border-radius:999px;background:var(--head-field);position:relative;transition:background .2s;flex:none}
+.pill i::after{content:"";position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;background:var(--head-ink);transition:transform .2s}
+.pill[aria-pressed="true"] i{background:var(--note-num)}
+.pill[aria-pressed="true"] i::after{transform:translateX(12px)}
+
+main{max-width:880px;margin:0 auto;padding-block:10px 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:12px}
+.ttl{margin:0;font-size:13px;line-height:1.45;font-weight:700;color:var(--ink);letter-spacing:.02em}
+.ttl span{font-weight:400;color:var(--muted)}
+
+/* 提案ポイント */
+.note{display:none;position:relative;margin-top:10px;padding:10px 12px 10px 42px;background:var(--note-bg);border:1px solid var(--note-line);border-radius:12px;color:var(--note-ink);font-size:13px;line-height:1.65}
+.note b{display:block;font-size:13.5px;margin-bottom:1px}
+.note::before{content:attr(data-n);position:absolute;left:11px;top:10px;width:22px;height:22px;border-radius:50%;background:var(--note-num);color:var(--note-bg);font:700 12px/22px var(--font-num);text-align:center}
+body.notes .note{display:block}
+.notes-g{margin-top:6px}
+
+/* カード */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:12px 14px 14px;box-shadow:var(--shadow);min-width:0}
+.sh{display:flex;align-items:center;justify-content:space-between;gap:4px 10px;flex-wrap:wrap;min-height:30px}
+h2{font-size:17px;margin:0;letter-spacing:.02em}
+.shs{font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+
+/* 共通の部品 */
+.seg{display:inline-flex;padding:2px;border-radius:10px;background:var(--surface-2);border:1px solid var(--line)}
+.seg button{border:0;background:transparent;padding:5px 11px;border-radius:8px;font-size:13.5px;font-weight:700;color:var(--muted);white-space:nowrap}
+.seg button.on{background:var(--accent);color:var(--accent-ink)}
+.ib{min-width:36px;height:36px;padding:0 10px;border-radius:10px;border:1px solid var(--line);background:var(--surface-2);font-size:18px;line-height:1;color:var(--ink);font-weight:700;flex:none}
+.ib.txt{font-size:13px}
+.ib:disabled{opacity:.35;cursor:default}
+.rl{flex:1;min-width:0;text-align:center;font-size:14px;font-weight:700;line-height:1.3;font-variant-numeric:tabular-nums}
+.rl small{display:block;font-size:11.5px;font-weight:400;color:var(--muted);min-height:1.3em}
+.cmp{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px}
+.cmpl{font-size:12.5px;font-weight:700;color:var(--muted);white-space:nowrap}
+.dt{border:1px solid var(--line);background:var(--surface-2);border-radius:9px;padding:4px 8px;font-size:14px;color:var(--ink);font-family:var(--font-num);min-height:34px}
+.mini{border:1px solid var(--accent);color:var(--accent);background:transparent;border-radius:999px;padding:4px 11px;font-size:12px;font-weight:700;white-space:nowrap}
+
+/* 最終更新 */
+.upd{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.upd i{width:8px;height:8px;border-radius:50%;background:var(--ok);flex:none}
+.upd.stale{color:var(--warn);font-weight:700}
+.upd.stale i{background:var(--warn)}
+@media (prefers-reduced-motion:no-preference){.upd i{animation:live 2.6s ease-out infinite}}
+@keyframes live{0%{box-shadow:0 0 0 0 var(--ok-weak)}70%{box-shadow:0 0 0 7px transparent}100%{box-shadow:0 0 0 0 transparent}}
+
+/* グラフ操作 */
+.ctrl{display:flex;flex-direction:column;gap:6px;margin-top:6px}
+.ctrl .row{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px}
+.navr{display:flex;align-items:center;gap:6px;min-width:0}
+.timebar{position:sticky;top:calc(env(safe-area-inset-top,0px) + var(--hh,54px));z-index:12;margin:8px -14px 0;padding:5px 14px;background:var(--surface);border-top:1px solid var(--line);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:40px}
+.tbt{font-size:13px}
+.tbt b{font-family:var(--font-num);font-size:18px;font-variant-numeric:tabular-nums;margin-right:2px}
+.tbh{font-size:11.5px;color:var(--muted);text-align:right;line-height:1.35}
+
+/* グラフ本体 */
+.lanes{display:flex;flex-direction:column;gap:12px;margin-top:4px}
+.lane{border-radius:8px;transition:box-shadow .3s}
+.lane.flash{box-shadow:0 0 0 2px var(--accent)}
+.ax{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:26px;padding-bottom:2px}
+.axl{font-size:12px;font-weight:700;white-space:nowrap}
+.axl small{font-size:11px;font-weight:400;color:var(--muted);margin-left:3px}
+.axr{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:var(--muted);white-space:nowrap}
+.selw2{position:relative;display:inline-block}
+.selw2::after{content:"";position:absolute;right:9px;top:50%;width:6px;height:6px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:translateY(-70%) rotate(45deg);pointer-events:none}
+.selw2 select{appearance:none;-webkit-appearance:none;border:1px solid var(--line);background:var(--surface-2);border-radius:8px;padding:2px 24px 2px 8px;font-size:12.5px;font-weight:700;color:var(--rc,var(--ink))}
+.pz{touch-action:pan-y;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;cursor:crosshair}
+.plot{display:block;width:100%;height:auto;pointer-events:none}
+.xax{display:block;width:100%;height:auto}
+.pbg{fill:var(--surface)}
+.nt{fill:var(--night)}
+.gn{stroke:var(--grid);stroke-width:1}
+.gm{stroke:var(--grid-strong);stroke-width:1}
+.gd{stroke:var(--faint);stroke-width:1;stroke-dasharray:2 3}
+.gh{stroke:var(--grid);stroke-width:1}
+.fr{fill:none;stroke:var(--line)}
+.rtk{stroke-width:1.2}
+.yl{fill:var(--muted);font-size:10px;font-family:var(--font-num)}
+.xl{fill:var(--muted);font-size:10.5px;font-family:var(--font-num)}
+.xd{fill:var(--ink);font-weight:700;font-family:var(--font-ui)}
+.band{fill:var(--hd-band)}
+.bl{fill:var(--c-hd);font-size:9.5px;font-weight:700}
+.ln{fill:none;stroke-linejoin:round;stroke-linecap:round}
+.ds{stroke-dasharray:6 4}
+.pv{opacity:.4}
+.ar{fill-opacity:.22;stroke:none}
+.cv{fill-opacity:.2;stroke:none}
+.cvm{fill-opacity:.1}
+.ov2{fill:var(--over)}
+.lt0{fill:var(--grid)}
+.nw{stroke:var(--accent);stroke-width:1.2;stroke-dasharray:3 3}
+.nwl{fill:var(--accent);font-size:10px;font-weight:700}
+.cl{stroke:var(--cursor);stroke-width:1.2;opacity:.75}
+.xcb{fill:var(--ink)}
+.xct{fill:var(--surface);font-size:11px;font-weight:700;font-family:var(--font-num)}
+
+/* 拡大中だけ出る帯 */
+.zrow{margin-top:6px}
+.zrow svg{display:block;width:100%;height:40px;touch-action:none;cursor:grab}
+.zline{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:4px;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.ovbg{fill:var(--surface-2);stroke:var(--line)}
+.ovdim{fill:var(--bg);opacity:.72}
+.ovsel{fill:none;stroke:var(--accent);stroke-width:2}
+
+/* 凡例（グラフの下） */
+.lgd{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px 8px;margin-top:8px;max-width:560px}
+.lgc{display:flex;flex-direction:column;gap:5px;min-width:0}
+.lg{display:grid;grid-template-columns:16px minmax(0,1fr) auto;align-items:center;column-gap:6px;padding:4px 8px;min-height:32px;border-radius:9px;border:1px solid var(--line);background:var(--surface-2);text-align:left;color:var(--ink);min-width:0}
+.lg .sw2{width:16px;height:0;border-top:2.5px solid var(--c);border-radius:2px}
+.lg .sw2.dash{border-top:2px dashed var(--c)}
+.lg .sw2.area{height:10px;border:0;background:var(--c);opacity:.55}
+.lg .sw2.cover{height:10px;border:0;border-top:2px solid var(--c);background:var(--c);opacity:.5;border-radius:0 0 2px 2px}
+.lg .sw2.lamp{height:10px;width:13px;border:0;background:var(--c);border-radius:2px}
+.lg .lnm{font-size:12.5px;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.lg .lv{white-space:nowrap;line-height:1.3;text-align:right}
+.lg b{font-family:var(--font-num);font-weight:600;font-size:14.5px;font-variant-numeric:tabular-nums}
+.lg .un{display:inline-block;margin-left:3px;font-size:10.5px;color:var(--muted);text-align:left}
+.lgc.ul .un{min-width:1.1em}
+.lgc.ur .un{min-width:2.7em}
+.lg em{grid-column:2 / 4;justify-self:end;font-style:normal;font-size:11px;line-height:1.3;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.lg em:empty{display:none}
+.lg.off{opacity:.45}
+.lg.off b{text-decoration:line-through}
+
+/* 今の状態 */
+.nowgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:8px}
+@media (min-width:640px){.nowgrid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.nc{appearance:none;-webkit-appearance:none;text-align:left;display:flex;flex-direction:column;gap:1px;padding:10px 11px 9px;border-radius:12px;background:var(--surface-2);border:1px solid var(--line);min-width:0}
+.nc:hover{border-color:var(--grid-strong)}
+.nc .nm{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted);font-weight:700}
+.nc .nm i{width:8px;height:8px;border-radius:50%;background:var(--c);flex:none}
+.nc .val{font-family:var(--font-num);font-size:28px;font-weight:600;line-height:1.15;letter-spacing:-.01em;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nc .val small{font-family:var(--font-ui);font-size:12.5px;font-weight:400;color:var(--muted);margin-left:3px;letter-spacing:0}
+.nc .val .v2{font-size:20px;margin-left:6px}
+.df{font-size:11.5px;font-variant-numeric:tabular-nums}
+.up{color:var(--up)} .dn{color:var(--down)} .fl{color:var(--muted)}
+.spk{display:block;width:100%;height:30px;margin-top:4px}
+.nc .sub{font-size:11.5px;color:var(--muted);min-height:1.6em;display:flex;align-items:center;gap:6px;flex-wrap:wrap;line-height:1.4}
+.bdg{font-size:11px;font-weight:700;padding:0 7px;border-radius:999px;line-height:1.7}
+.bdg.ok{background:var(--ok-weak);color:var(--ok)}
+.bdg.lo,.bdg.hi{background:var(--warn-weak);color:var(--warn)}
+.bdg.nt{background:var(--grid);color:var(--muted)}
+.status{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.st{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:999px;border:1px solid var(--line);background:var(--surface);font-size:12.5px;color:var(--muted)}
+.st i{width:8px;height:8px;border-radius:50%;background:var(--grid-strong);flex:none}
+.st b{color:var(--ink);font-weight:700}
+.st.on{border-color:var(--c)}
+.st.on i{background:var(--c)}
+
+/* 1日のまとめ（1画面に収める） */
+.dnav{display:flex;align-items:center;gap:6px}
+.dnav .ib{min-width:34px;height:34px}
+.dnav .rl{min-width:104px}
+#sec-sum .cmp{margin-top:6px}
+.sumgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-top:8px}
+@media (min-width:640px){.sumgrid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (min-width:820px){.sumgrid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.sc{appearance:none;-webkit-appearance:none;text-align:left;display:flex;flex-direction:column;gap:0;padding:6px 10px 7px;border-radius:11px;background:var(--surface-2);border:1px solid var(--line);min-width:0}
+.sc.sel{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent);background:var(--accent-weak)}
+.sc .nm{display:flex;align-items:baseline;gap:6px;font-size:12.5px;font-weight:700;line-height:1.4;white-space:nowrap;overflow:hidden;min-width:0}
+.sc .nm small{font-size:11px;font-weight:400;color:var(--muted);overflow:hidden;text-overflow:ellipsis;min-width:0}
+.sc .vr{display:flex;align-items:baseline;flex-wrap:wrap;gap:0 8px;min-width:0}
+.sc .val{font-family:var(--font-num);font-size:20px;font-weight:600;line-height:1.25;font-variant-numeric:tabular-nums;white-space:nowrap}
+.sc .val small{font-family:var(--font-ui);font-size:11px;font-weight:400;color:var(--muted);margin:0 2px}
+.sc .val.rg{font-size:17px;letter-spacing:-.01em}
+.sc .df{font-size:11px;white-space:nowrap}
+.trend{margin-top:12px;padding-top:10px;border-top:1px dashed var(--line)}
+.trend h3{font-size:13.5px;margin:0 0 6px}
+.trend svg{display:block;width:100%;height:auto}
+.tb{fill:var(--grid-strong)}
+.tb.sel{fill:var(--accent)}
+.tv{fill:var(--muted);font-size:11px;font-family:var(--font-num)}
+.tv.sel{fill:var(--ink);font-weight:700}
+.tl{fill:var(--muted);font-size:10.5px;font-family:var(--font-num)}
+.tl.sel{fill:var(--ink);font-weight:700}
+.defs{font-size:11.5px;color:var(--muted);margin:10px 0 0}
+
+/* この試作について */
+.about{padding:2px 2px 0}
+.about h2{font-size:15px}
+.about p{margin:6px 0 0;font-size:13.5px;max-width:42em}
+.about .foot{font-size:12px;color:var(--muted)}
+</style>
+</head>
+<body>
+
+<div class="app" lang="ja">
+<header class="top">
+  <div class="top-in">
+    <div class="dev">
+      <label for="devSel">装置</label>
+      <div class="selw"><select id="devSel"></select></div>
+    </div>
+    <button type="button" class="pill" id="noteBtn" aria-pressed="true"><i aria-hidden="true"></i>提案ポイント</button>
+  </div>
+</header>
+
+<main>
+  <h1 class="ttl">換気ナビ 観測画面の改善提案<span>（試作・数値は架空のデータ）</span></h1>
+
+  <section class="card" id="sec-graph" aria-labelledby="h-graph">
+    <div class="sh"><h2 id="h-graph">観測グラフ</h2><span class="upd" id="upd"></span></div>
+    <div class="ctrl">
+      <div class="navr">
+        <button type="button" class="ib" id="prevBtn" aria-label="前の期間">‹</button>
+        <div class="rl" id="rangeLbl" aria-live="polite"></div>
+        <button type="button" class="ib" id="nextBtn" aria-label="次の期間">›</button>
+        <button type="button" class="ib txt" id="latestBtn">今日</button>
+      </div>
+      <div class="row">
+        <div class="seg" id="spanSeg" role="group" aria-label="表示する期間">
+          <button type="button" data-span="1">1日</button><button type="button" data-span="3">3日</button><button type="button" data-span="7">7日</button>
+        </div>
+        <div class="seg" id="modeSeg" role="group" aria-label="グラフの表示方法">
+          <button type="button" data-mode="merge">重ねる</button><button type="button" data-mode="lanes">段分け</button>
+        </div>
+        <div class="cmp">
+          <span class="cmpl">比べる</span>
+          <div class="seg" id="cmpSeg" role="group" aria-label="グラフで比べる相手">
+            <button type="button" data-c="none">なし</button><button type="button" data-c="avg7">7日平均</button><button type="button" data-c="date">日付</button>
+          </div>
+          <input type="date" class="dt" id="cmpDate" aria-label="比べる日付" hidden>
+        </div>
+      </div>
+    </div>
+    <div class="timebar" id="timebar"></div>
+    <div class="lanes" id="lanes"></div>
+    <svg class="xax" id="xax" aria-hidden="true"></svg>
+    <div class="zrow" id="zrow" hidden>
+      <svg id="ovsvg" role="img" aria-label="拡大している範囲。横にずらして移動できます"></svg>
+      <div class="zline"><span id="zLbl"></span><button type="button" class="mini" id="zReset">全体に戻す</button></div>
+    </div>
+    <div class="notes-g">
+      <aside class="note" data-n="1"><b>重ねたまま、数値が読める</b>全項目を1枚に重ねる表示はそのままに、左に温度、右に選んだ項目（飽差・日射・CO2・開度）の目盛りを付けました。凡例と値はグラフの下に決まった並びで表示します。横になぞるとその時刻の値に切り替わり、指を離しても線と値が残るので、手に隠れずに読めます。項目を押すと線の表示・非表示を切り替えられます。</aside>
+      <aside class="note" data-n="2"><b>段に分ける表示も選べる</b>「段分け」にすると、単位ごとに段を分けて時間軸をそろえて表示します。すべての段に目盛りと単位が付きます。</aside>
+      <aside class="note" data-n="3"><b>設定は点線、実測は実線</b>室温が換気設定を上回った部分をオレンジで塗りました。換気の遅れや効き具合が一目でわかります。</aside>
+      <aside class="note" data-n="4"><b>前日・さかのぼった日・過去7日平均と比べる</b>「比べる」の「日付」を押すと、まず前日の線を薄く重ねます。日付を選び直せば、さかのぼった日とも比べられます。「7日平均」は過去7日間の同じ時刻の平均です。朝のうちは、まだ来ていない時間帯にも比べた相手の線が出るので、その日の見通しの目安になります。その時間帯もなぞって値を読めます。</aside>
+      <aside class="note" data-n="5"><b>保温カーテンは上から覆う色、ランプはグラフの直下</b>保温カーテンは閉じている分だけ上から色で覆うので、カーテンの状態が直感的にわかります。日射加算・除湿のランプはグラフの直下に帯で示し、線を隠しません。</aside>
+      <aside class="note" data-n="6"><b>0時始まり、縦軸は固定、夜は色分け</b>グラフは0時から始まり、1日表示は0時〜24時です。日を変えても目盛りが変わらないので、グラフの形をそのまま比べられます（他社製品で使いやすかった点）。日の入り〜日の出は背景に薄い色を付け、飽差は適正範囲（3〜6 g/m³）を帯で示しています。</aside>
+      <aside class="note" data-n="7"><b>スマホで操作しやすく</b>縦のスワイプはそのままページが動き、グラフの上で画面が止まりません。横になぞると数値、2本指で拡大します。拡大中はグラフの下に出る帯をずらして移動でき、30分ごとの補助線も出ます。パソコンでは、トラックパッドのピンチか、Ctrlキーを押しながらホイールで拡大できます。</aside>
+    </div>
+  </section>
+
+  <section class="card" id="sec-now" aria-labelledby="h-now">
+    <div class="sh"><h2 id="h-now">今の状態</h2><span class="shs" id="nowAt"></span></div>
+    <div class="nowgrid" id="nowgrid"></div>
+    <div class="status" id="status" aria-label="機器の状態"></div>
+    <div class="notes-g">
+      <aside class="note" data-n="8"><b>開いてすぐ「今」がわかる</b>主な6項目の現在値、1時間前との差、24時間の流れを一覧にしました（以前使っていた他社製品で使いやすかった点です）。カードを押すと、その項目のグラフへ移動します。</aside>
+      <aside class="note" data-n="9"><b>機器の状態は言葉で表示</b>保温カーテン・換気・除湿・日射加算を「閉／スカシ／開」「作動中」のように言葉で示します。最終更新の時刻はグラフの上に常に表示し、15分以上データが届かないときは赤で知らせます。</aside>
+    </div>
+  </section>
+
+  <section class="card" id="sec-sum" aria-labelledby="h-sum">
+    <div class="sh">
+      <h2 id="h-sum">1日のまとめ</h2>
+      <div class="dnav">
+        <button type="button" class="ib" id="sPrev" aria-label="前の日">‹</button>
+        <div class="rl" id="sLbl" aria-live="polite"></div>
+        <button type="button" class="ib" id="sNext" aria-label="次の日">›</button>
+      </div>
+    </div>
+    <div class="cmp">
+      <span class="cmpl">比べる</span>
+      <div class="seg" id="sCmpSeg" role="group" aria-label="まとめで比べる相手">
+        <button type="button" data-c="prev">前日</button><button type="button" data-c="avg7">7日平均</button><button type="button" data-c="date">日付</button>
+      </div>
+      <input type="date" class="dt" id="sCmpDate" aria-label="比べる日付" hidden>
+    </div>
+    <div class="sumgrid" id="sumgrid"></div>
+    <div class="trend" id="trend"><h3 id="trendH"></h3><svg id="trendSvg" aria-hidden="true"></svg></div>
+    <p class="defs">日中は日の出〜日の入り、夜間は前日の日の入り〜当日の日の出（設置場所の時刻で計算）。飽差の適正範囲は 3〜6 g/m³。7日平均は、その日の前の7日間の平均です。</p>
+    <div class="notes-g">
+      <aside class="note" data-n="10"><b>1日のまとめを1画面で</b>日中・夜間の平均、DIF、積算日射、飽差が適正だった時間、換気や保温カーテンの時刻などを自動で集計し、スクロールせずに見渡せる大きさにまとめました。前日・過去7日平均・指定した日との差を切り替えて見られ、項目を押すと7日間の推移が出ます。</aside>
+    </div>
+  </section>
+
+  <section class="about" aria-labelledby="h-about">
+    <h2 id="h-about">この試作について</h2>
+    <p>EyeFarm Cloud「換気ナビ」の観測画面を、利用者の立場から「こうなると毎日見やすい」という形にした試作です。グラフや数値は実際に触って操作できます。黄色の枠は変更したねらいの説明で、右上の「提案ポイント」で表示・非表示を切り替えられます。</p>
+    <aside class="note" data-n="11"><b>測定装置の切り替え</b>複数台をお持ちの方は、上の「装置」で切り替えます（この試作では、切り替えの動きを見るために2台目を用意しています）。装置どうしを並べて比べる表示が必要かどうかは、複数台をお使いの方のご意見もお聞きいただければと思います。</aside>
+    <p class="foot">表示している数値はすべて架空のデータで、実際の製品の画面・機能とは異なります。</p>
+  </section>
+</main>
+</div>
+
+<script>
+(() => {
+'use strict';
+
+/* ===== 小道具 ===== */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+const NS = 'http://www.w3.org/2000/svg';
+const sv = (tag, attrs, parent) => {
+  const e = document.createElementNS(NS, tag);
+  if (attrs) for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+};
+const txt = (parent, x, y, s, cls, anchor) => {
+  const e = sv('text', { x: (+x).toFixed(1), y: (+y).toFixed(1), class: cls, 'text-anchor': anchor || 'start' }, parent);
+  e.textContent = s;
+  return e;
+};
+const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+const lin = (x, x0, x1, y0, y1) => y0 + (y1 - y0) * clamp((x - x0) / (x1 - x0), 0, 1);
+const store = {
+  get(k) { try { return window.localStorage.getItem(k); } catch (e) { return null; } },
+  set(k, v) { try { window.localStorage.setItem(k, v); } catch (e) { /* 保存できなくても動作は続ける */ } }
+};
+const reduceMotion = () => { try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } };
+
+/* ===== 時刻（日本時間の「分」で扱う） ===== */
+const JST = 540;
+const nowMin = () => Math.floor(Date.now() / 60000) + JST;
+const DOW = ['日', '月', '火', '水', '木', '金', '土'];
+const ymd = day => { const d = new Date(day * 86400000); return { y: d.getUTCFullYear(), m: d.getUTCMonth() + 1, d: d.getUTCDate(), w: d.getUTCDay() }; };
+const hm = t => { const m = ((Math.round(t) % 1440) + 1440) % 1440; return Math.floor(m / 60) + ':' + String(m % 60).padStart(2, '0'); };
+const hmEnd = t => (Math.round(t) % 1440 === 0 ? '24:00' : hm(t));
+const md = t => { const o = ymd(Math.floor(t / 1440)); return o.m + '/' + o.d; };
+const mdw = day => { const o = ymd(day); return o.m + '/' + o.d + '（' + DOW[o.w] + '）'; };
+const dayStr = day => { const o = ymd(day); return o.y + '-' + String(o.m).padStart(2, '0') + '-' + String(o.d).padStart(2, '0'); };
+const strDay = s => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s || ''); return m ? Math.round(Date.UTC(+m[1], +m[2] - 1, +m[3]) / 86400000) : null; };
+
+/* ===== 日の出・日の入り（福岡県南部付近） ===== */
+const LAT = 33.2, LON = 130.5, RAD = Math.PI / 180;
+const sunMemo = new Map();
+function sun(day) {
+  let r = sunMemo.get(day);
+  if (r) return r;
+  const o = ymd(day);
+  const n = Math.round((Date.UTC(o.y, o.m - 1, o.d) - Date.UTC(o.y, 0, 1)) / 86400000) + 1;
+  const decl = 23.44 * Math.sin(2 * Math.PI * (284 + n) / 365) * RAD;
+  const B = 2 * Math.PI * (n - 81) / 364;
+  const eot = 9.87 * Math.sin(2 * B) - 7.53 * Math.cos(B) - 1.5 * Math.sin(B);
+  const noon = 720 + (135 - LON) * 4 - eot;
+  const cosH = (Math.sin(-0.833 * RAD) - Math.sin(LAT * RAD) * Math.sin(decl)) / (Math.cos(LAT * RAD) * Math.cos(decl));
+  const H = Math.acos(clamp(cosH, -1, 1)) / RAD;
+  r = { rise: day * 1440 + Math.round(noon - H * 4), set: day * 1440 + Math.round(noon + H * 4), noon: day * 1440 + noon, decl };
+  sunMemo.set(day, r);
+  return r;
+}
+const sinElev = (t, s) => Math.sin(LAT * RAD) * Math.sin(s.decl) + Math.cos(LAT * RAD) * Math.cos(s.decl) * Math.cos((t - s.noon) * 0.25 * RAD);
+
+/* ===== 乱数（同じ日なら同じ天気になるよう、日付から種を作る） ===== */
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+function hash(a, b) {
+  let h = Math.imul(a ^ 0x9e3779b9, 0x85ebca6b) ^ Math.imul((b + 0x7f4a7c15) | 0, 0xc2b2ae35);
+  h ^= h >>> 16; h = Math.imul(h, 0x7feb352d); h ^= h >>> 15; h = Math.imul(h, 0x846ca68b); h ^= h >>> 16;
+  return h >>> 0;
+}
+
+/* ===== 湿度の計算 ===== */
+const es = T => 6.1078 * Math.pow(10, 7.5 * T / (T + 237.3));
+const ahSat = T => 216.7 * es(T) / (T + 273.15);
+
+/* ===== 装置（2台目は切り替えのデモ用） ===== */
+const DEVICES = [
+  { id: 'd1', name: 'ナスハウス', seed: 11, p: { night: 12, morning: 15, ventDay: 25, ventPm: 23, ventNight: 21, gS: 0.00036 } },
+  { id: 'd2', name: '2台目（切替のデモ）', seed: 29, p: { night: 13, morning: 16, ventDay: 26, ventPm: 24, ventNight: 22, gS: 0.00033 } }
+];
+
+/* ===== 天気（さかのぼるほど季節が戻って暖かくなる） ===== */
+const WX = {
+  sunny:  { tmin: [9, 11],    tmax: [19, 21.5],   base: 1.00, pIn: 0.004, pOut: 0.10, depth: [0.45, 0.7], rh: 0.90 },
+  partly: { tmin: [10, 12],   tmax: [17.5, 20],   base: 0.95, pIn: 0.030, pOut: 0.07, depth: [0.25, 0.5], rh: 0.93 },
+  cloudy: { tmin: [11, 13],   tmax: [15.5, 17.5], base: 0.38, pIn: 0.020, pOut: 0.05, depth: [0.5, 0.8],  rh: 0.96 },
+  rain:   { tmin: [12, 13.5], tmax: [14, 16],     base: 0.13, pIn: 0.020, pOut: 0.05, depth: [0.6, 0.9],  rh: 0.99 }
+};
+function weather(day, seed, today) {
+  const r = mulberry32(hash(day, seed * 7 + 3));
+  const rel = day - today;
+  let type;
+  if (rel >= -1) type = 'sunny';
+  else if (rel === -2) type = 'partly';
+  else { const u = r(); type = u < 0.45 ? 'sunny' : u < 0.72 ? 'partly' : u < 0.9 ? 'cloudy' : 'rain'; }
+  const P = WX[type];
+  const pick = a => a[0] + (a[1] - a[0]) * r();
+  const warm = Math.max(0, -rel) * 0.22;
+  return { type, tmin: pick(P.tmin) + warm, tmax: pick(P.tmax) + warm * 0.9, base: P.base, pIn: P.pIn, pOut: P.pOut, depth: pick(P.depth), rh: P.rh };
+}
+function makeOutTemp(W) {
+  const cosI = (t, t0, v0, t1, v1) => v0 + (v1 - v0) * (1 - Math.cos(Math.PI * clamp((t - t0) / (t1 - t0), 0, 1))) / 2;
+  return t => {
+    const day = Math.floor(t / 1440);
+    const tMin = sun(day).rise + 25, tMax = day * 1440 + 850;
+    if (t >= tMin && t < tMax) return cosI(t, tMin, W(day).tmin, tMax, W(day).tmax);
+    // 午後の最高気温 → 日没3時間後までに大きく下がり、その後は翌朝までゆっくり下がる
+    const d0 = t < tMin ? day - 1 : day, w0 = W(d0), w1 = W(d0 + 1);
+    const mx = d0 * 1440 + 850, eve = sun(d0).set + 180, mn = sun(d0 + 1).rise + 25;
+    const te = w1.tmin + 0.3 * (w0.tmax - w1.tmin);
+    if (t < eve) return cosI(t, mx, w0.tmax, eve, te);
+    return te + (w1.tmin - te) * clamp((t - eve) / (mn - eve), 0, 1);
+  };
+}
+
+/* ===== ハウスの動きを1分きざみで再現し、5分ごとに記録する ===== */
+const KEYS = ['temp', 'vent', 'heat', 'suka', 'hd', 'sol', 'co2', 'v1', 'v2', 'cur', 'lsol', 'ldh'];
+function simulate(dev, t0, tEnd, today) {
+  const N = Math.floor((tEnd - t0) / 5) + 1;
+  const s = {};
+  KEYS.forEach(k => { s[k] = new Float32Array(N); });
+  const wMemo = new Map();
+  const W = d => { let w = wMemo.get(d); if (!w) { w = weather(d, dev.seed, today); wMemo.set(d, w); } return w; };
+  const outT = makeOutTemp(W);
+  const p = dev.p;
+  let Ti = p.night + 0.6, AH = ahSat(Ti) * 0.97, C = 500, cur = 0, v1 = 0, v2 = 0, u1 = 0;
+  let heaterOn = false, dhOn = false, dhUntil = 0, dhNext = 0, lsol = false, gen = false, cloud = 1, solAvg = 0, opened = false;
+  let day = -1, rng = null, w = null, sn = null;
+  for (let t = t0; t <= tEnd; t++) {
+    const dd = Math.floor(t / 1440);
+    if (dd !== day) { day = dd; w = W(day); sn = sun(day); rng = mulberry32(hash(day, dev.seed * 131 + 17)); cloud = 1; opened = false; }
+    const m = t - day * 1440, rise = sn.rise - day * 1440, set = sn.set - day * 1440;
+
+    // 日射（雲の通過で上下する）
+    let S = 0;
+    const se = sinElev(t, sn);
+    if (se > 0.02) {
+      if (cloud >= 1) { if (rng() < w.pIn) cloud = w.depth * (0.85 + 0.3 * rng()); }
+      else if (rng() < w.pOut) cloud = 1;
+      S = 1050 * se * Math.pow(0.92, 1 / se) * w.base * cloud * (0.96 + 0.08 * rng());
+    }
+    solAvg += (S - solAvg) * 0.1;
+    if (!lsol && solAvg > 450) lsol = true; else if (lsol && solAvg < 380) lsol = false;
+
+    // 換気設定（朝に上げ、午後に下げる。日射加算で+1.5℃）
+    let vent;
+    if (m < rise - 20) vent = p.ventNight;
+    else if (m < rise + 100) vent = lin(m, rise - 20, rise + 100, p.ventNight, p.ventDay);
+    else if (m < 780) vent = p.ventDay;
+    else if (m < 900) vent = lin(m, 780, 900, p.ventDay, p.ventPm);
+    else if (m < set + 20) vent = p.ventPm;
+    else if (m < set + 50) vent = lin(m, set + 20, set + 50, p.ventPm, p.ventNight);
+    else vent = p.ventNight;
+    if (lsol) vent += 1.5;
+
+    // 暖房設定（夜温、早朝加温、日没後に戻す）
+    let heat;
+    if (m < 300) heat = p.night;
+    else if (m < rise + 20) heat = lin(m, 300, rise + 20, p.night, p.morning);
+    else if (m < set) heat = p.morning;
+    else heat = lin(m, set, set + 100, p.morning, p.night);
+
+    // スカシ設定
+    const sukaNight = p.night + 4;
+    let suka;
+    if (m < 120 || m >= set + 50) suka = sukaNight;
+    else if (m < rise + 150) suka = lin(m, 120, rise + 150, sukaNight, p.ventDay - 4);
+    else suka = vent - 4;
+
+    // 除湿（夜、湿度が高いと暖房設定を一時的に上げる）
+    const rh = AH / ahSat(Ti);
+    const night = t < sn.rise - 30 || t > sn.set + 30;
+    if (dhOn && t >= dhUntil) { dhOn = false; dhNext = t + 45 + Math.floor(rng() * 20); }
+    if (!dhOn && night && rh > 0.95 && t >= dhNext) { dhOn = true; dhUntil = t + 10 + Math.floor(rng() * 6); }
+    const heatEff = heat + (dhOn ? 1.5 : 0);
+
+    // 保温カーテン（朝に全開、夕方に閉じる。閉じている間は室温がスカシ設定を超えると少し開ける）
+    if (!opened && t >= sn.rise + 55 && t < sn.set - 35 && (S > 120 || t >= sn.rise + 120)) opened = true;
+    let goal = 0;
+    if (opened && t < sn.set - 35) goal = 100;
+    else if (Ti > suka) goal = 10;
+    cur += clamp(goal - cur, -4, 4);
+
+    // 換気（設定との差に合わせて少しずつ開け閉めする。カーテンを閉じた後は原則閉める）
+    const err = Ti - vent;
+    let g1, g2;
+    if (cur >= 50) {
+      u1 = clamp(u1 + err * 0.8, 0, 100);
+      g1 = clamp(u1 + err * 8, 0, 100);
+      g2 = clamp((u1 - 30) * 0.8 + err * 5, 0, 100);
+    } else { u1 = Math.max(0, u1 - 2); g1 = err > 1.5 ? 10 : 0; g2 = 0; }
+    v1 += clamp(g1 - v1, -3, 3);
+    v2 += clamp(g2 - v2, -2, 2);
+
+    // 暖房機
+    if (!heaterOn && Ti < heatEff - 0.3) heaterOn = true;
+    else if (heaterOn && Ti > heatEff + 0.5) heaterOn = false;
+
+    // 室温（k：熱の逃げやすさ、ka：空気の入れ替わり）
+    const To = outT(t);
+    const k = 0.006 + 0.004 * (cur / 100) + 0.00045 * v1 + 0.0003 * v2;
+    const ka = 0.0016 + 0.0005 * v1 + 0.00035 * v2;
+    Ti += k * (To - Ti) + p.gS * S + (heaterOn ? 0.11 : 0) + (rng() - 0.5) * 0.02;
+
+    // 湿度（蒸散で増え、換気と被覆への結露で減る）
+    const AHout = ahSat(w.tmin + 1) * w.rh;
+    const hd0 = Math.max(0, ahSat(Ti) - AH);
+    AH += ka * (AHout - AH) + 0.0006 * S * (0.35 + 0.65 * clamp(hd0 / 5, 0, 1)) + 0.02;
+    const sf = ahSat((To + Ti) / 2);
+    if (AH > sf) AH -= 0.05 * (AH - sf);
+    const sat = ahSat(Ti);
+    if (AH > sat * 0.985) AH = sat * (0.975 + rng() * 0.01);
+
+    // CO2（日の出前から施用、日中は光合成で下がる）
+    const genWin = t >= sn.rise - 60 && t < sn.rise + 150 && cur < 60 && v1 < 5;
+    if (genWin) { if (!gen && C < 780) gen = true; else if (gen && C > 880) gen = false; } else gen = false;
+    C += ka * (415 - C) + (0.3 + 0.015 * Math.max(0, Ti - 10)) - 0.003 * S * (C / 400) + (gen ? 6 : 0) + (rng() - 0.5) * 1.5;
+
+    if ((t - t0) % 5 === 0) {
+      const i = (t - t0) / 5;
+      s.temp[i] = Ti + (rng() - 0.5) * 0.1;
+      s.vent[i] = vent; s.heat[i] = heatEff; s.suka[i] = suka;
+      s.hd[i] = Math.max(0, sat - AH);
+      s.sol[i] = S; s.co2[i] = C;
+      s.v1[i] = Math.round(v1); s.v2[i] = Math.round(v2); s.cur[i] = Math.round(cur);
+      s.lsol[i] = lsol ? 1 : 0; s.ldh[i] = dhOn ? 1 : 0;
+    }
+  }
+  return { t0, N, s, avg: {} };
+}
+
+/* ===== 表示する項目と段 ===== */
+const SERIES = [
+  { k: 'temp', n: '室温', full: '温度センサ1', u: '℃', c: '--c-temp', lane: 'temp', kind: 'line', w: 2.4, dg: 1 },
+  { k: 'vent', n: '換気設定', full: '実換気温度設定', u: '℃', c: '--c-vent', lane: 'temp', kind: 'dash', w: 1.7, dg: 1 },
+  { k: 'heat', n: '暖房設定', full: '実暖房温度設定', u: '℃', c: '--c-heat', lane: 'temp', kind: 'dash', w: 1.7, dg: 1 },
+  { k: 'suka', n: 'スカシ設定', full: '実スカシ温度設定', u: '℃', c: '--c-suka', lane: 'temp', kind: 'dash', w: 1.7, dg: 1 },
+  { k: 'hd', n: '飽差', full: '飽差1', u: 'g/m³', c: '--c-hd', lane: 'hd', kind: 'line', w: 2, dg: 1 },
+  { k: 'sol', n: '日射', full: '日射量', u: 'W/m²', c: '--c-sol', lane: 'sol', kind: 'area', w: 1.4, dg: 0 },
+  { k: 'co2', n: 'CO2', full: 'CO2濃度', u: 'ppm', c: '--c-co2', lane: 'co2', kind: 'line', w: 2, dg: 0 },
+  { k: 'v1', n: '換気1', full: '換気開度1', u: '%', c: '--c-v1', lane: 'open', kind: 'line', w: 2, dg: 0 },
+  { k: 'v2', n: '換気2', full: '換気開度2', u: '%', c: '--c-v2', lane: 'open', kind: 'line', w: 2, dg: 0 },
+  { k: 'cur', n: '保温', full: '保温開度', u: '%', c: '--c-cur', lane: 'open', kind: 'cover', w: 1.4, dg: 0 },
+  { k: 'lsol', n: '日射加算', short: '日射', full: '日射加算ランプ', u: '', c: '--c-lsol', lane: 'lamp', kind: 'lamp' },
+  { k: 'ldh', n: '除湿', short: '除湿', full: '除湿ランプ', u: '', c: '--c-ldh', lane: 'lamp', kind: 'lamp' }
+];
+const SER = Object.fromEntries(SERIES.map(s => [s.k, s]));
+const MEAS = ['temp', 'hd', 'sol', 'co2'];
+const LANES = [
+  { k: 'temp', t: '温度', u: '℃', h: 150, min: 5, max: 35, ticks: [5, 10, 15, 20, 25, 30, 35] },
+  { k: 'hd', t: '飽差', u: 'g/m³', h: 86, min: 0, max: 12, ticks: [0, 3, 6, 9, 12], band: [3, 6] },
+  { k: 'sol', t: '日射', u: 'W/m²', h: 66, min: 0, max: 1000, ticks: [0, 500, 1000] },
+  { k: 'co2', t: 'CO2', u: 'ppm', h: 74, min: 300, max: 1100, ticks: [400, 700, 1000] },
+  { k: 'open', t: '開度', u: '%', h: 80, min: 0, max: 100, ticks: [0, 50, 100] },
+  { k: 'lamp', t: 'ランプ', u: '', h: 40 }
+];
+const LANE = Object.fromEntries(LANES.map(l => [l.k, l]));
+const MERGED = { k: 'all', h: 300, min: 5, max: 35, ticks: [5, 10, 15, 20, 25, 30, 35], merged: true };
+const RAX = [
+  { k: 'hd', n: '飽差', u: 'g/m³', c: '--c-hd' },
+  { k: 'sol', n: '日射', u: 'W/m²', c: '--c-sol' },
+  { k: 'co2', n: 'CO2', u: 'ppm', c: '--c-co2' },
+  { k: 'open', n: '開度', u: '%', c: '--c-v1' }
+];
+// 重ねる表示の凡例：左は温度とランプ、右は右の目盛りを使う項目
+const LEG_COLS = [['temp', 'vent', 'heat', 'suka', 'lsol', 'ldh'], ['hd', 'sol', 'co2', 'v1', 'v2', 'cur']];
+
+/* ===== 状態とデータ ===== */
+const S = {
+  dev: 0, span: 1, endDay: 0, zoom: null, cursor: null,
+  mode: 'merge', raxis: 'hd', cmp: { m: 'none', day: null }, hidden: new Set(),
+  sumDay: 0, metric: 'avg24', scmp: { m: 'prev', day: null }
+};
+const HIST = 35;  // さかのぼれる日数
+let LAST = 0, TODAY = 0, D = null;
+const ML = 32;
+let MR = 34, PW = 300, VA = 0, VB = 1440, clipSeq = 0;
+const X = t => ML + (t - VA) / (VB - VA) * PW;
+const dataMemo = new Map(), metricMemo = new Map(), avgMemo = new Map();
+const XAX = $('#xax'), ZROW = $('#zrow');
+
+function loadData() {
+  const now = nowMin();
+  LAST = Math.floor(now / 5) * 5;
+  TODAY = Math.floor(now / 1440);
+  const dev = DEVICES[S.dev], key = dev.id + ':' + LAST;
+  D = dataMemo.get(key);
+  if (!D) { dataMemo.clear(); D = simulate(dev, (TODAY - HIST) * 1440, LAST, TODAY); dataMemo.set(key, D); }
+  metricMemo.clear(); avgMemo.clear();
+}
+const firstDay = () => Math.floor(D.t0 / 1440);
+const minDay = () => firstDay() + 1;  // 最初の1日はならし運転のため表示しない
+const idx = t => Math.round((t - D.t0) / 5);
+const val = (k, t) => { const i = idx(t); return i < 0 || i >= D.N ? null : D.s[k][i]; };
+const fv = (s, v) => (v == null || isNaN(v)) ? '—' : s.kind === 'lamp' ? (v >= 0.5 ? 'ON' : 'OFF') : v.toFixed(s.dg);
+const rangeIdx = (a, b) => [Math.max(0, Math.ceil((a - D.t0) / 5)), Math.min(D.N - 1, Math.ceil((b - D.t0) / 5) - 1)];
+function mean(k, a, b) { const [i0, i1] = rangeIdx(a, b); if (i1 < i0) return null; let s = 0; for (let i = i0; i <= i1; i++) s += D.s[k][i]; return s / (i1 - i0 + 1); }
+function solSum(a, b) { const [i0, i1] = rangeIdx(a, b); let s = 0; for (let i = i0; i <= i1; i++) s += D.s.sol[i]; return s * 300 / 1e6; }
+const curWord = v => v <= 0 ? '閉' : v < 100 ? (v <= 15 ? 'スカシ' : '開閉中') : '開';
+// 過去7日間の同じ時刻の平均（今日のまだ来ていない時間帯の分も作る）
+function avg7(k) {
+  if (!D.avg[k]) {
+    const src = D.s[k], N2 = Math.round(((TODAY + 1) * 1440 - D.t0) / 5) + 1, out = new Float32Array(N2);
+    for (let i = 0; i < N2; i++) {
+      let s = 0, n = 0;
+      for (let j = 1; j <= 7; j++) { const ii = i - 288 * j; if (ii >= 0 && ii < D.N) { s += src[ii]; n++; } }
+      out[i] = n ? s / n : NaN;
+    }
+    D.avg[k] = out;
+  }
+  return D.avg[k];
+}
+
+/* ===== 期間（0時始まり）と比較 ===== */
+const isLatest = () => S.endDay >= TODAY;
+const anchorDay = () => S.endDay - S.span + 1;
+const win = () => [anchorDay() * 1440, (S.endDay + 1) * 1440];
+const view = () => S.zoom || win();
+// 日付を選び直すまでは、表示している日の前日と比べる
+const cmpDay = () => (S.cmp.day != null ? S.cmp.day : Math.max(minDay(), anchorDay() - 1));
+function cmpInfo() {
+  if (S.cmp.m === 'none') return null;
+  if (S.cmp.m === 'avg7') return { lab: () => '7日平均', shift: 0, arr: k => avg7(k) };
+  const shift = (anchorDay() - cmpDay()) * 1440;
+  return { lab: t => md(t - shift), shift, arr: k => D.s[k] };
+}
+function cmpVal(ci, k, t) {
+  const arr = ci.arr(k), i = idx(t - ci.shift);
+  if (i < 0 || i >= arr.length) return null;
+  const v = arr[i];
+  return v === v ? v : null;
+}
+
+/* ===== 今の状態 ===== */
+const NOWC = [
+  { k: 'temp', n: '室温', lane: 'temp' },
+  { k: 'hd', n: '飽差', lane: 'hd' },
+  { k: 'co2', n: 'CO2', lane: 'co2' },
+  { k: 'sol', n: '日射', lane: 'sol' },
+  { k: 'v1', n: '換気開度', lane: 'open' },
+  { k: 'cur', n: '保温カーテン', lane: 'open' }
+];
+function diffTxt(d, dg) {
+  const r = +d.toFixed(dg);
+  const cls = r > 0 ? 'up' : r < 0 ? 'dn' : 'fl';
+  return `<span class="df ${cls}">1時間前より ${r > 0 ? '+' : r < 0 ? '−' : '±'}${Math.abs(r).toFixed(dg)}</span>`;
+}
+function renderNow() {
+  const i = D.N - 1, g = k => D.s[k][i], g1 = k => D.s[k][Math.max(0, i - 12)];
+  const st = sun(TODAY), isDay = LAST > st.rise && LAST < st.set;
+  $('#nowAt').textContent = `${hm(LAST)} 時点`;
+  const box = $('#nowgrid');
+  box.innerHTML = '';
+  NOWC.forEach(c => {
+    const se = SER[c.k];
+    let v = '', df = '', sub = '';
+    if (c.k === 'temp') { v = `${g('temp').toFixed(1)}<small>℃</small>`; df = diffTxt(g('temp') - g1('temp'), 1); sub = `暖房 ${g('heat').toFixed(1)} ／ 換気 ${g('vent').toFixed(1)}℃`; }
+    else if (c.k === 'hd') {
+      const x = g('hd');
+      v = `${x.toFixed(1)}<small>g/m³</small>`; df = diffTxt(x - g1('hd'), 1);
+      const b = !isDay ? ['夜間', 'nt'] : x < 3 ? ['低め', 'lo'] : x > 6 ? ['高め', 'hi'] : ['適正', 'ok'];
+      sub = `<span class="bdg ${b[1]}">${b[0]}</span>目安 3〜6（日中）`;
+    }
+    else if (c.k === 'co2') { const y = metrics(TODAY - 1); v = `${Math.round(g('co2'))}<small>ppm</small>`; df = diffTxt(g('co2') - g1('co2'), 0); sub = y && y.co2Day != null ? `昨日の日中平均 ${Math.round(y.co2Day)}ppm` : ''; }
+    else if (c.k === 'sol') { v = `${Math.round(g('sol'))}<small>W/m²</small>`; df = diffTxt(g('sol') - g1('sol'), 0); sub = `今日の積算 ${solSum(TODAY * 1440, LAST + 5).toFixed(2)} MJ/m²`; }
+    else if (c.k === 'v1') { v = `${g('v1')}<small>%</small><span class="v2">／ ${g('v2')}<small>%</small></span>`; df = '<span class="df fl">換気1 ／ 換気2</span>'; sub = `換気設定 ${g('vent').toFixed(1)}℃`; }
+    else if (c.k === 'cur') { const x = g('cur'); v = `${curWord(x)}<small>${x}%</small>`; df = '<span class="df fl">保温開度</span>'; sub = `スカシ設定 ${g('suka').toFixed(1)}℃`; }
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'nc'; b.style.setProperty('--c', `var(${se.c})`);
+    b.setAttribute('aria-label', `${c.n}のグラフへ移動`);
+    b.innerHTML = `<span class="nm"><i></i>${c.n}</span><span class="val">${v}</span>${df}<svg class="spk" aria-hidden="true"></svg><span class="sub">${sub}</span>`;
+    b.addEventListener('click', () => goLane(c.lane));
+    box.appendChild(b);
+    spark($('svg', b), c.k, se.c);
+  });
+  const v1 = g('v1'), v2 = g('v2'), cur = g('cur'), ldh = g('ldh') >= 0.5, ls = g('lsol') >= 0.5;
+  const items = [
+    { n: '保温カーテン', v: curWord(cur), on: cur > 0, c: '--c-cur' },
+    { n: '換気', v: v1 > 0 || v2 > 0 ? `開 ${v1}%` : '閉', on: v1 > 0 || v2 > 0, c: '--c-v1' },
+    { n: '除湿', v: ldh ? '作動中' : '停止', on: ldh, c: '--c-ldh' },
+    { n: '日射加算', v: ls ? 'ON' : 'OFF', on: ls, c: '--c-lsol' }
+  ];
+  $('#status').innerHTML = items.map(x => `<span class="st${x.on ? ' on' : ''}" style="--c:var(${x.c})"><i></i>${x.n}<b>${x.v}</b></span>`).join('');
+}
+function renderUpd() {
+  const ago = nowMin() - LAST;
+  const el = $('#upd');
+  el.className = 'upd' + (ago >= 15 ? ' stale' : '');
+  el.innerHTML = `<i></i>${ago >= 15 ? 'データが届いていません　' : ''}最終更新 ${hm(LAST)}（${ago <= 0 ? 'たった今' : ago + '分前'}）`;
+}
+function spark(svg, k, c) {
+  const W = Math.max(80, Math.floor(svg.getBoundingClientRect().width || 140)), H = 30;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.setAttribute('width', W); svg.setAttribute('height', H);
+  const arr = D.s[k], i0 = Math.max(0, idx(LAST - 1440)), i1 = D.N - 1;
+  if (i1 <= i0) return;
+  let mn = Infinity, mx = -Infinity;
+  for (let i = i0; i <= i1; i++) { if (arr[i] < mn) mn = arr[i]; if (arr[i] > mx) mx = arr[i]; }
+  if (mx - mn < 1e-6) mx = mn + 1;
+  const xp = i => 1 + (i - i0) / (i1 - i0) * (W - 5), yp = v => H - 3 - (v - mn) / (mx - mn) * (H - 8);
+  const step = Math.max(1, Math.floor((i1 - i0) / W));
+  const P = [];
+  for (let i = i0; i < i1; i += step) P.push(xp(i).toFixed(1) + ',' + yp(arr[i]).toFixed(1));
+  const ex = xp(i1), ey = yp(arr[i1]);
+  P.push(ex.toFixed(1) + ',' + ey.toFixed(1));
+  const d = 'M' + P.join('L');
+  sv('path', { d: d + `L${ex.toFixed(1)},${H}L1,${H}Z`, style: `fill:var(${c});fill-opacity:.12;stroke:none` }, svg);
+  sv('path', { d, class: 'ln', style: `stroke:var(${c});stroke-width:1.5` }, svg);
+  sv('circle', { cx: ex.toFixed(1), cy: ey.toFixed(1), r: 2.6, style: `fill:var(${c})` }, svg);
+}
+function goLane(k) {
+  const merged = S.mode === 'merge';
+  const el = merged ? $('#sec-graph') : $(`.lane[data-lane="${k}"]`);
+  if (!el) return;
+  el.scrollIntoView({ behavior: reduceMotion() ? 'auto' : 'smooth', block: merged ? 'start' : 'center' });
+  if (!merged) { el.classList.add('flash'); setTimeout(() => el.classList.remove('flash'), 1400); }
+}
+
+/* ===== グラフ：段と凡例の組み立て ===== */
+function chip(s) {
+  const b = document.createElement('button');
+  b.type = 'button'; b.className = 'lg'; b.dataset.k = s.k;
+  b.style.setProperty('--c', `var(${s.c})`);
+  b.setAttribute('aria-label', `${s.full}の表示を切り替え`);
+  b.innerHTML = `<i class="sw2 ${s.kind}"></i><span class="lnm">${s.n}</span><span class="lv"><b data-v="${s.k}">—</b><span class="un">${s.u}</span></span>${MEAS.includes(s.k) ? `<em data-p="${s.k}"></em>` : ''}`;
+  b.addEventListener('click', () => { if (S.hidden.has(s.k)) S.hidden.delete(s.k); else S.hidden.add(s.k); renderGraph(); });
+  return b;
+}
+function buildLanes() {
+  const box = $('#lanes');
+  box.innerHTML = '';
+  const merged = S.mode === 'merge';
+  const lanes = merged ? [MERGED] : LANES;
+  lanes.forEach((L, li) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'lane'; wrap.dataset.lane = L.k;
+    // 目盛りの見出し（左右の単位）
+    const ax = document.createElement('div');
+    ax.className = 'ax';
+    if (merged) {
+      ax.innerHTML = `<span class="axl">温度<small>℃</small></span><span class="axr">右の目盛り<span class="selw2"><select id="raxSel" aria-label="右の目盛りに使う項目">${RAX.map(r => `<option value="${r.k}"${r.k === S.raxis ? ' selected' : ''}>${r.n} ${r.u}</option>`).join('')}</select></span></span>`;
+      $('select', ax).addEventListener('change', e => { S.raxis = e.target.value; renderGraph(); });
+    } else ax.innerHTML = `<span class="axl">${L.t}${L.u ? `<small>${L.u}</small>` : ''}</span>`;
+    const pz = document.createElement('div');
+    pz.className = 'pz';
+    const svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('class', 'plot'); svg.setAttribute('aria-hidden', 'true');
+    pz.appendChild(svg);
+    wrap.append(ax, pz);
+    // 時間軸と拡大中の帯は、いちばん下のグラフの直下に置く
+    if (li === lanes.length - 1) wrap.append(XAX, ZROW);
+    // 凡例はグラフの下
+    const lg = document.createElement('div');
+    if (merged) {
+      lg.className = 'lgd';
+      LEG_COLS.forEach((keys, ci) => {
+        const col = document.createElement('div');
+        col.className = 'lgc ' + (ci ? 'ur' : 'ul');
+        keys.forEach(k => col.appendChild(chip(SER[k])));
+        lg.appendChild(col);
+      });
+    } else {
+      lg.className = 'lgd';
+      SERIES.filter(s => s.lane === L.k).forEach(s => lg.appendChild(chip(s)));
+    }
+    wrap.appendChild(lg);
+    box.appendChild(wrap);
+    attachPZ(pz);
+  });
+}
+
+/* ===== グラフ：描画 ===== */
+const MINOR = { 30: 15, 60: 30, 120: 60, 180: 60, 360: 180, 720: 180, 1440: 360 };
+function tickSpec(a, b) {
+  const ppm = PW / (b - a);
+  const lab = [30, 60, 120, 180, 360, 720, 1440].find(s => s * ppm >= (s < 60 ? 34 : 26)) || 1440;
+  return { lab, minor: MINOR[lab] };
+}
+function nights(a, b) {
+  const out = [];
+  for (let d = Math.floor(a / 1440) - 1; d <= Math.floor(b / 1440) + 1; d++) {
+    const x0 = Math.max(a, sun(d - 1).set), x1 = Math.min(b, sun(d).rise);
+    if (x1 > x0) out.push([x0, x1]);
+  }
+  return out;
+}
+function pathPts(arr, a, b, shift, Y, xf, pw) {
+  const t0 = D.t0 + shift;
+  const i0 = Math.max(0, Math.floor((a - t0) / 5) - 1), i1 = Math.min(arr.length - 1, Math.ceil((b - t0) / 5) + 1);
+  const pts = [];
+  if (i1 < i0) return pts;
+  if (i1 - i0 + 1 > pw * 2) {
+    let col = null, mn = 0, mx = 0;
+    for (let i = i0; i <= i1; i++) {
+      const v = arr[i];
+      if (v !== v) continue;
+      const x = Math.round(xf(t0 + i * 5));
+      if (x !== col) { if (col !== null) pts.push([col, Y(mn)], [col, Y(mx)]); col = x; mn = mx = v; }
+      else { if (v < mn) mn = v; if (v > mx) mx = v; }
+    }
+    if (col !== null) pts.push([col, Y(mn)], [col, Y(mx)]);
+  } else {
+    for (let i = i0; i <= i1; i++) { const v = arr[i]; if (v === v) pts.push([xf(t0 + i * 5), Y(v)]); }
+  }
+  return pts;
+}
+const toD = pts => pts.length ? 'M' + pts.map(p => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join('L') : '';
+function runs(k, a, b) {
+  const arr = D.s[k], out = [];
+  const i0 = Math.max(0, Math.floor((a - D.t0) / 5) - 1), i1 = Math.min(D.N - 1, Math.ceil((b - D.t0) / 5) + 1);
+  let st = null;
+  for (let i = i0; i <= i1; i++) {
+    const on = arr[i] >= 0.5, t = D.t0 + i * 5;
+    if (on && st === null) st = t;
+    else if (!on && st !== null) { out.push([st, t]); st = null; }
+  }
+  if (st !== null) out.push([st, D.t0 + i1 * 5 + 5]);
+  return out;
+}
+function overArea(Y) {
+  const T = D.s.temp, V = D.s.vent;
+  const i0 = Math.max(0, Math.floor((VA - D.t0) / 5) - 1), i1 = Math.min(D.N - 1, Math.ceil((VB - D.t0) / 5) + 1);
+  let d = '', up = [], lo = [];
+  const flush = () => { if (up.length > 1) d += 'M' + up.join('L') + 'L' + lo.reverse().join('L') + 'Z'; up = []; lo = []; };
+  for (let i = i0; i <= i1; i++) {
+    if (T[i] > V[i]) { const x = X(D.t0 + i * 5).toFixed(1); up.push(x + ',' + Y(T[i]).toFixed(1)); lo.push(x + ',' + Y(V[i]).toFixed(1)); }
+    else flush();
+  }
+  flush();
+  return d;
+}
+function drawSeries(g, s, Y, Ls, arr, shift, faded) {
+  const pts = pathPts(arr, VA, VB, shift, Y, X, PW);
+  if (pts.length < 2) return;
+  const col = `var(${s.c})`, d = toD(pts);
+  const x0 = pts[0][0].toFixed(1), x1 = pts[pts.length - 1][0].toFixed(1);
+  if (faded) { sv('path', { d, class: 'ln pv', style: `stroke:${col};stroke-width:1.6` }, g); return; }
+  if (s.kind === 'cover') {
+    // 保温カーテン：閉じている分だけ上から覆う
+    const ty = Y(Ls.max).toFixed(1);
+    sv('path', { d: d + `L${x1},${ty}L${x0},${ty}Z`, class: S.mode === 'merge' ? 'cv cvm' : 'cv', style: `fill:${col}` }, g);
+    sv('path', { d, class: 'ln', style: `stroke:${col};stroke-width:${s.w}` }, g);
+  } else if (s.kind === 'area') {
+    const by = Y(Ls.min).toFixed(1);
+    sv('path', { d: d + `L${x1},${by}L${x0},${by}Z`, class: 'ar', style: `fill:${col}` }, g);
+    sv('path', { d, class: 'ln', style: `stroke:${col};stroke-width:${s.w}` }, g);
+  } else {
+    sv('path', { d, class: 'ln' + (s.kind === 'dash' ? ' ds' : ''), style: `stroke:${col};stroke-width:${s.w}` }, g);
+  }
+}
+function drawLamps(svg, g, list, y0, rowH, gap) {
+  list.forEach((s, r) => {
+    const y = y0 + r * (rowH + gap);
+    sv('rect', { x: ML, y, width: PW, height: rowH, rx: 3, class: 'lt0' }, g);
+    if (!S.hidden.has(s.k)) runs(s.k, VA, VB).forEach(([a, b]) => sv('rect', { x: X(a).toFixed(1), y, width: Math.max(2, X(b) - X(a)).toFixed(1), height: rowH, rx: 2, style: `fill:var(${s.c})` }, g));
+    txt(svg, ML - 5, y + rowH - 1.5, s.short, 'yl', 'end');
+  });
+}
+function drawLane(svg, L, list, W) {
+  const merged = !!L.merged;
+  const plotH = L.h, H = plotH + (merged ? 32 : 0), top = 7, ph = plotH - 14;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.setAttribute('width', W); svg.setAttribute('height', H);
+  const id = 'cp' + (++clipSeq);
+  sv('rect', { x: ML, y: 0, width: PW, height: H }, sv('clipPath', { id }, sv('defs', null, svg)));
+  sv('rect', { x: ML, y: 0, width: PW, height: plotH, class: 'pbg' }, svg);
+  const g = sv('g', { 'clip-path': `url(#${id})` }, svg);
+  nights(VA, VB).forEach(([a, b]) => sv('rect', { x: X(a).toFixed(1), y: 0, width: Math.max(0, X(b) - X(a)).toFixed(1), height: plotH, class: 'nt' }, g));
+  const tk = tickSpec(VA, VB);
+  for (let t = Math.ceil(VA / tk.minor) * tk.minor; t <= VB; t += tk.minor) {
+    const x = X(t).toFixed(1);
+    sv('line', { x1: x, x2: x, y1: 0, y2: plotH, class: t % 1440 === 0 ? 'gd' : t % tk.lab === 0 ? 'gm' : 'gn' }, g);
+  }
+  if (L.k === 'lamp') { drawLamps(svg, g, list, 6, 11, 6); finishLane(svg, g, H, plotH, L); return; }
+  const Yof = Ls => v => top + (1 - (clamp(v, Ls.min, Ls.max) - Ls.min) / (Ls.max - Ls.min)) * ph;
+  const Y = Yof(L);
+  L.ticks.forEach(v => {
+    const y = Y(v);
+    sv('line', { x1: ML, x2: ML + PW, y1: y.toFixed(1), y2: y.toFixed(1), class: 'gh' }, g);
+    txt(svg, ML - 5, y + 3.5, String(v), 'yl', 'end');
+  });
+  const band = (Yb, b) => {
+    const y1 = Yb(b[1]), y0 = Yb(b[0]);
+    sv('rect', { x: ML, y: y1.toFixed(1), width: PW, height: (y0 - y1).toFixed(1), class: 'band' }, g);
+    txt(g, ML + PW - 5, y1 + 11, '適正 3〜6', 'bl', 'end');
+  };
+  if (merged) {
+    // 右の目盛り（選んだ項目）
+    const R = LANE[S.raxis], rc = RAX.find(x => x.k === S.raxis).c, YR = Yof(R);
+    R.ticks.forEach(v => {
+      const y = YR(v).toFixed(1);
+      sv('line', { x1: (ML + PW).toFixed(1), x2: (ML + PW + 4).toFixed(1), y1: y, y2: y, class: 'rtk', style: `stroke:var(${rc})` }, svg);
+      txt(svg, ML + PW + 6, +y + 3.5, String(v), 'yl', 'start').style.fill = `var(${rc})`;
+    });
+    if (S.raxis === 'hd' && !S.hidden.has('hd')) band(YR, LANE.hd.band);
+  } else if (L.band) band(Y, L.band);
+  const vis = list.filter(s => !S.hidden.has(s.k));
+  const YS = s => merged ? Yof(LANE[s.lane]) : Y;
+  const LS = s => merged ? LANE[s.lane] : L;
+  if ((L.k === 'temp' || merged) && !S.hidden.has('temp') && !S.hidden.has('vent')) {
+    const d = overArea(merged ? Yof(LANE.temp) : Y);
+    if (d) sv('path', { d, class: 'ov2' }, g);
+  }
+  const ci = cmpInfo();
+  if (ci) vis.filter(s => MEAS.includes(s.k)).forEach(s => drawSeries(g, s, YS(s), LS(s), ci.arr(s.k), ci.shift, true));
+  // 描く順：保温カーテン → 日射 → 設定（点線） → 実測（線）
+  const order = s => s.kind === 'cover' ? 0 : s.kind === 'area' ? 1 : s.kind === 'dash' ? 2 : 3;
+  vis.filter(s => s.kind !== 'lamp').sort((a, b) => order(a) - order(b)).forEach(s => drawSeries(g, s, YS(s), LS(s), D.s[s.k], 0, false));
+  // 重ねる表示では、ランプ類をグラフの直下に帯で置く
+  if (merged) drawLamps(svg, g, list.filter(s => s.kind === 'lamp'), plotH + 6, 9, 5);
+  finishLane(svg, g, H, plotH, L);
+}
+function finishLane(svg, g, H, plotH, L) {
+  if (LAST >= VA && LAST <= VB) {
+    const x = X(LAST);
+    sv('line', { x1: x.toFixed(1), x2: x.toFixed(1), y1: 0, y2: H, class: 'nw' }, g);
+    if (L.k === 'temp' || L.merged) txt(g, x - 4, 12, '現在', 'nwl', 'end');
+  }
+  sv('rect', { x: ML + 0.5, y: 0.5, width: PW - 1, height: plotH - 1, class: 'fr' }, svg);
+  sv('line', { x1: 0, x2: 0, y1: 0, y2: H, class: 'cl', visibility: 'hidden' }, svg);
+}
+// 時間軸：上の段に時刻（0〜24時）、複数日のときは下の段に日付
+function drawXAxis(W) {
+  const svg = XAX;
+  svg.innerHTML = '';
+  const multi = S.span > 1;
+  const H = multi ? 34 : 20;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.setAttribute('width', W); svg.setAttribute('height', H);
+  const tk = tickSpec(VA, VB);
+  if (!(multi && tk.lab >= 1440)) {
+    for (let t = Math.ceil(VA / tk.lab) * tk.lab; t <= VB + 0.001; t += tk.lab) {
+      const x = X(t), atEnd = t >= VB - 0.001 && t % 1440 === 0;
+      const label = tk.lab < 60 ? (atEnd ? '24:00' : hm(t)) : (atEnd ? '24' : String(Math.floor((((t % 1440) + 1440) % 1440) / 60)));
+      txt(svg, x, 13, label, 'xl', x > ML + PW - 8 ? 'end' : x < ML + 8 ? 'start' : 'middle');
+    }
+  }
+  if (multi) {
+    for (let d = Math.floor(VA / 1440); d * 1440 < VB; d++) {
+      const a = Math.max(VA, d * 1440), b = Math.min(VB, (d + 1) * 1440), w = X(b) - X(a);
+      if (w < 28) continue;
+      txt(svg, (X(a) + X(b)) / 2, 29, w >= 72 ? mdw(d) : md(d * 1440), 'xl xd', 'middle');
+    }
+  }
+  const g = sv('g', { id: 'xcur', visibility: 'hidden' }, svg);
+  sv('rect', { x: -23, y: 1, width: 46, height: 17, rx: 6, class: 'xcb' }, g);
+  txt(g, 0, 13.5, '', 'xct', 'middle');
+}
+function drawOverview(W) {
+  const svg = $('#ovsvg');
+  if (!S.zoom) { ZROW.hidden = true; return; }
+  ZROW.hidden = false;
+  svg.innerHTML = '';
+  const H = 40;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.setAttribute('width', W); svg.setAttribute('height', H);
+  const [wa, wb] = win();
+  const XO = t => ML + (t - wa) / (wb - wa) * PW;
+  const L = LANE.temp, Yo = v => 5 + (1 - (clamp(v, L.min, L.max) - L.min) / (L.max - L.min)) * (H - 10);
+  sv('rect', { x: ML, y: 1, width: PW, height: H - 2, rx: 6, class: 'ovbg' }, svg);
+  nights(wa, wb).forEach(([a, b]) => sv('rect', { x: XO(a).toFixed(1), y: 1, width: Math.max(0, XO(b) - XO(a)).toFixed(1), height: H - 2, class: 'nt' }, svg));
+  const pts = pathPts(D.s.temp, wa, wb, 0, Yo, XO, PW).filter(p => p[0] >= ML && p[0] <= ML + PW);
+  if (pts.length > 1) sv('path', { d: toD(pts), class: 'ln', style: 'stroke:var(--c-temp);stroke-width:1.4' }, svg);
+  const za = XO(S.zoom[0]), zb = XO(S.zoom[1]);
+  sv('rect', { x: ML, y: 1, width: Math.max(0, za - ML).toFixed(1), height: H - 2, class: 'ovdim' }, svg);
+  sv('rect', { x: zb.toFixed(1), y: 1, width: Math.max(0, ML + PW - zb).toFixed(1), height: H - 2, class: 'ovdim' }, svg);
+  sv('rect', { x: za.toFixed(1), y: 1, width: Math.max(4, zb - za).toFixed(1), height: H - 2, rx: 5, class: 'ovsel' }, svg);
+  txt(svg, ML - 5, 24, '全体', 'yl', 'end');
+  const [z0, z1] = S.zoom;
+  const lbl = S.span === 1 ? `${hm(z0)}〜${hmEnd(z1)}` : `${md(z0)} ${hm(z0)}〜${md(z1 - 1)} ${hmEnd(z1)}`;
+  $('#zLbl').textContent = `${lbl} を拡大中（帯をずらすと移動）`;
+}
+function renderGraph() {
+  const box = $('#lanes');
+  const W = Math.max(260, Math.floor(box.getBoundingClientRect().width));
+  MR = S.mode === 'merge' ? 34 : 8;
+  PW = W - ML - MR;
+  const v = view();
+  VA = v[0]; VB = v[1];
+  clipSeq = 0;
+  $$('.lane', box).forEach(wrap => {
+    const L = wrap.dataset.lane === 'all' ? MERGED : LANE[wrap.dataset.lane];
+    const list = L.merged ? SERIES : SERIES.filter(s => s.lane === L.k);
+    const svg = $('.plot', wrap);
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+    drawLane(svg, L, list, W);
+    $$('.lg', wrap).forEach(b => { const off = S.hidden.has(b.dataset.k); b.classList.toggle('off', off); b.setAttribute('aria-pressed', String(!off)); });
+  });
+  const sel = $('#raxSel');
+  if (sel) sel.style.setProperty('--rc', `var(${RAX.find(r => r.k === S.raxis).c})`);
+  drawXAxis(W);
+  drawOverview(W);
+  updateCursor();
+}
+let raf = 0;
+const scheduleRender = () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; renderGraph(); }); };
+
+/* ===== なぞった時刻の値 ===== */
+function updateCursor() {
+  const hasNow = LAST >= VA && LAST < VB;
+  const tDef = hasNow ? LAST : clamp(Math.floor((VB - 1) / 5) * 5, D.t0, LAST);
+  const t = S.cursor == null ? tDef : S.cursor;
+  const tb = $('#timebar');
+  const hint = '<span class="tbh">なぞると値を表示<br>2本指で拡大</span>';
+  tb.innerHTML = S.cursor == null
+    ? (hasNow ? `<span class="tbt">最新 <b>${hm(LAST)}</b> の値</span>${hint}` : `<span class="tbt"><b>${md(t)} ${hm(t)}</b> の値</span>${hint}`)
+    : `<span class="tbt"><b>${md(t)} ${hm(t)}</b> の値</span><button type="button" class="mini" id="tbReset">${hasNow ? '最新に戻す' : 'なぞりを解除'}</button>`;
+  $$('#lanes [data-v]').forEach(e => { const s = SER[e.dataset.v]; e.textContent = fv(s, val(s.k, t)); });
+  const ci = cmpInfo();
+  $$('#lanes [data-p]').forEach(e => {
+    if (!ci) { e.textContent = ''; return; }
+    const s = SER[e.dataset.p], v = cmpVal(ci, s.k, t);
+    e.textContent = v == null ? '' : `${ci.lab(t)} ${fv(s, v)}`;
+  });
+  const show = S.cursor != null && t >= VA && t <= VB;
+  const x = X(t);
+  $$('#lanes .cl').forEach(l => { l.setAttribute('visibility', show ? 'visible' : 'hidden'); l.setAttribute('x1', x.toFixed(1)); l.setAttribute('x2', x.toFixed(1)); });
+  const xc = $('#xcur');
+  if (xc) {
+    xc.setAttribute('visibility', show ? 'visible' : 'hidden');
+    xc.setAttribute('transform', `translate(${clamp(x, 24, ML + PW - 16).toFixed(1)},0)`);
+    $('text', xc).textContent = hm(t);
+  }
+}
+// 比べる相手を表示中は、まだ来ていない時間帯もなぞれる
+function setCursorT(t) {
+  const lastSlot = Math.floor((VB - 1) / 5) * 5;
+  const hi = cmpInfo() ? lastSlot : Math.min(lastSlot, LAST);
+  const lo = Math.max(Math.ceil(VA / 5) * 5, D.t0);
+  if (hi < lo) return;
+  S.cursor = clamp(Math.round(t / 5) * 5, lo, hi);
+  updateCursor();
+}
+const tAt = (clientX, el) => { const r = el.getBoundingClientRect(); return VA + (clientX - r.left - ML) / PW * (VB - VA); };
+
+/* ===== 指とマウスの操作（なぞる・2本指で拡大） ===== */
+const ptrs = new Map();
+let pinch = null, scrub = null;
+function attachPZ(pz) {
+  pz.addEventListener('pointerdown', onDown);
+  pz.addEventListener('pointermove', onMove);
+  pz.addEventListener('pointerup', onUp);
+  pz.addEventListener('pointercancel', endPtr);
+  pz.addEventListener('touchmove', e => { if ((scrub && scrub.moved) || pinch || e.touches.length > 1) e.preventDefault(); }, { passive: false });
+  pz.addEventListener('contextmenu', e => e.preventDefault());
+  // パソコン：トラックパッドのピンチ、またはCtrl＋ホイールで拡大（ふつうのホイールはページのスクロール）
+  pz.addEventListener('wheel', e => {
+    if (!e.ctrlKey) return;
+    e.preventDefault();
+    const r = pz.getBoundingClientRect();
+    zoomAt(clamp((e.clientX - r.left - ML) / PW, 0, 1), view(), Math.exp(clamp(e.deltaY, -60, 60) * 0.012));
+  }, { passive: false });
+}
+function zoomAt(f, base, factor) {
+  const [wa, wb] = win();
+  const span = clamp((base[1] - base[0]) * factor, 60, wb - wa);
+  const tc = base[0] + f * (base[1] - base[0]);
+  const st = clamp(tc - f * span, wa, wb - span);
+  setZoom([st, st + span]);
+}
+function onDown(e) {
+  const el = e.currentTarget;
+  ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, el, type: e.pointerType });
+  if (ptrs.size === 2) startPinch();
+  else if (ptrs.size === 1) {
+    scrub = { id: e.pointerId, moved: false };
+    if (e.pointerType === 'mouse') setCursorT(tAt(e.clientX, el));
+  }
+}
+function onMove(e) {
+  const p = ptrs.get(e.pointerId);
+  if (!p) { if (e.pointerType === 'mouse' && e.buttons === 0) setCursorT(tAt(e.clientX, e.currentTarget)); return; }
+  p.x = e.clientX; p.y = e.clientY;
+  if (pinch) { doPinch(); return; }
+  if (scrub && scrub.id === e.pointerId) {
+    const dx = Math.abs(p.x - p.x0), dy = Math.abs(p.y - p.y0);
+    if (!scrub.moved && dx > 6 && dx > dy) scrub.moved = true;
+    if (scrub.moved || p.type === 'mouse') setCursorT(tAt(p.x, p.el));
+  }
+}
+function onUp(e) {
+  const p = ptrs.get(e.pointerId);
+  if (p && !pinch && scrub && scrub.id === e.pointerId && !scrub.moved && Math.abs(p.x - p.x0) < 8 && Math.abs(p.y - p.y0) < 8) setCursorT(tAt(p.x, p.el));
+  endPtr(e);
+}
+function endPtr(e) {
+  ptrs.delete(e.pointerId);
+  if (ptrs.size < 2) pinch = null;
+  if (ptrs.size === 0) scrub = null;
+}
+function startPinch() {
+  const [a, b] = Array.from(ptrs.values());
+  const r = a.el.getBoundingClientRect();
+  const f = clamp(((a.x + b.x) / 2 - r.left - ML) / PW, 0, 1);
+  pinch = { d0: Math.max(24, Math.abs(a.x - b.x)), base: [VA, VB], f };
+  scrub = null;
+}
+function doPinch() {
+  const [a, b] = Array.from(ptrs.values());
+  const d = Math.max(24, Math.abs(a.x - b.x));
+  zoomAt(pinch.f, pinch.base, pinch.d0 / d);
+}
+// iPhoneでは2本指の操作をページの拡大に取られないようにする。Macのトラックパッド（Safari）はここで拡大する
+let gz = null;
+document.addEventListener('gesturestart', e => {
+  const pz = e.target && e.target.closest && e.target.closest('.pz');
+  if (!pz) return;
+  e.preventDefault();
+  if (ptrs.size) return;
+  const r = pz.getBoundingClientRect(), f = (e.clientX - r.left - ML) / PW;
+  gz = { base: [VA, VB], f: isFinite(f) ? clamp(f, 0, 1) : 0.5 };
+}, { passive: false });
+document.addEventListener('gesturechange', e => {
+  if (e.target && e.target.closest && e.target.closest('.pz')) e.preventDefault();
+  if (gz && !ptrs.size && e.scale > 0) zoomAt(gz.f, gz.base, 1 / e.scale);
+}, { passive: false });
+document.addEventListener('gestureend', () => { gz = null; });
+function setZoom(r) {
+  const [wa, wb] = win();
+  if (!r || r[1] - r[0] >= (wb - wa) - 1) S.zoom = null;
+  else S.zoom = [Math.max(wa, r[0]), Math.min(wb, r[1])];
+  scheduleRender();
+}
+const ovsvg = $('#ovsvg');
+let ovDrag = null;
+ovsvg.addEventListener('pointerdown', e => {
+  if (!S.zoom) return;
+  const r = ovsvg.getBoundingClientRect(), [wa, wb] = win();
+  const t = wa + (e.clientX - r.left - ML) / PW * (wb - wa);
+  const span = S.zoom[1] - S.zoom[0];
+  if (t < S.zoom[0] || t > S.zoom[1]) { const a = clamp(t - span / 2, wa, wb - span); S.zoom = [a, a + span]; renderGraph(); }
+  ovDrag = { x: e.clientX, za: S.zoom[0], span, wa, wb };
+  try { ovsvg.setPointerCapture(e.pointerId); } catch (err) { /* 未対応でも続ける */ }
+});
+ovsvg.addEventListener('pointermove', e => {
+  if (!ovDrag) return;
+  const a = clamp(ovDrag.za + (e.clientX - ovDrag.x) / PW * (ovDrag.wb - ovDrag.wa), ovDrag.wa, ovDrag.wb - ovDrag.span);
+  setZoom([a, a + ovDrag.span]);
+});
+['pointerup', 'pointercancel'].forEach(ev => ovsvg.addEventListener(ev, () => { ovDrag = null; }));
+$('#zReset').addEventListener('click', () => setZoom(null));
+
+/* ===== 期間・表示方法・比較の切り替え ===== */
+function updateNav() {
+  const [a, b] = win();
+  const d0 = anchorDay(), d1 = S.endDay;
+  const rel = d => d === TODAY ? '今日' : d === TODAY - 1 ? '昨日' : '';
+  $('#rangeLbl').innerHTML = S.span === 1
+    ? `${mdw(d0)}<small>${rel(d0)}</small>`
+    : `${md(a)} 〜 ${md(b - 1)}<small>${S.span}日間${d1 === TODAY ? '（今日まで）' : ''}</small>`;
+  $('#prevBtn').disabled = anchorDay() - S.span < minDay();
+  $('#nextBtn').disabled = isLatest();
+  $('#latestBtn').disabled = isLatest();
+  const mark = (sel, on) => $$(sel).forEach(btn => { const v = on(btn); btn.classList.toggle('on', v); btn.setAttribute('aria-pressed', String(v)); });
+  mark('#spanSeg button', btn => +btn.dataset.span === S.span);
+  mark('#modeSeg button', btn => btn.dataset.mode === S.mode);
+  mark('#cmpSeg button', btn => btn.dataset.c === S.cmp.m);
+  const cd = $('#cmpDate');
+  cd.hidden = S.cmp.m !== 'date';
+  cd.min = dayStr(minDay()); cd.max = dayStr(TODAY);
+  if (S.cmp.m === 'date') cd.value = dayStr(cmpDay());
+}
+function resetView() {
+  S.zoom = null;
+  const [a, b] = win();
+  if (S.cursor != null && (S.cursor < a || S.cursor >= b)) S.cursor = null;
+  updateNav();
+  renderGraph();
+}
+$('#prevBtn').addEventListener('click', () => { S.endDay -= S.span; resetView(); });
+$('#nextBtn').addEventListener('click', () => { S.endDay = Math.min(TODAY, S.endDay + S.span); resetView(); });
+$('#latestBtn').addEventListener('click', () => { S.endDay = TODAY; resetView(); });
+$$('#spanSeg button').forEach(b => b.addEventListener('click', () => {
+  S.span = +b.dataset.span;
+  if (anchorDay() < minDay()) S.endDay = minDay() + S.span - 1;
+  resetView();
+}));
+$$('#modeSeg button').forEach(b => b.addEventListener('click', () => {
+  if (S.mode === b.dataset.mode) return;
+  S.mode = b.dataset.mode;
+  buildLanes(); updateNav(); renderGraph();
+}));
+$$('#cmpSeg button').forEach(b => b.addEventListener('click', () => {
+  S.cmp.m = b.dataset.c;
+  if (S.cmp.m === 'date') S.cmp.day = null;  // 押すたびに、まず前日を表示
+  if (S.cmp.m === 'none' && S.cursor != null && S.cursor > LAST) S.cursor = null;
+  updateNav(); renderGraph();
+}));
+$('#cmpDate').addEventListener('change', e => {
+  const d = strDay(e.target.value);
+  if (d != null) { S.cmp.day = clamp(d, minDay(), TODAY); renderGraph(); }
+});
+$('#timebar').addEventListener('click', e => { if (e.target && e.target.id === 'tbReset') { S.cursor = null; updateCursor(); } });
+
+/* ===== 1日のまとめ ===== */
+const MET = [
+  { k: 'avg24', n: '平均気温', s: '24時間', u: '℃', dg: 1 },
+  { k: 'dayAvg', n: '日中平均', s: '日の出〜入り', u: '℃', dg: 1 },
+  { k: 'nightAvg', n: '夜間平均', s: '日没〜日の出', u: '℃', dg: 1 },
+  { k: 'dif', n: 'DIF', s: '日中−夜間', u: '℃', dg: 1 },
+  { k: 'solSum', n: '積算日射', s: '1日', u: 'MJ/m²', dg: 1 },
+  { k: 'hdDay', n: '飽差', s: '日中平均', u: 'g/m³', dg: 1 },
+  { k: 'hdOk', n: '飽差 適正時間', s: '3〜6 g/m³', u: '時間', dg: 1 },
+  { k: 'co2Day', n: 'CO2', s: '日中平均', u: 'ppm', dg: 0 },
+  { k: 'over', n: '換気設定超え', s: '+1℃以上', u: '時間', dg: 1 },
+  { k: 'vent', n: '換気', s: '開〜全閉', type: 'range' },
+  { k: 'cur', n: '保温カーテン', s: '全開〜閉', type: 'range' },
+  { k: 'dh', n: '除湿', s: '夜間', u: '回', dg: 0 }
+];
+function metrics(day) {
+  if (metricMemo.has(day)) return metricMemo.get(day);
+  let r = null;
+  const a = day * 1440;
+  if (a >= D.t0 + 1440 && a <= LAST) {
+    const b = Math.min(a + 1440, LAST + 5), s = sun(day), sp = sun(day - 1);
+    const dayB = Math.min(s.set, b), hasDay = dayB > s.rise;
+    const dayAvg = hasDay ? mean('temp', s.rise, dayB) : null;
+    const nightAvg = mean('temp', sp.set, Math.min(s.rise, b));
+    let ok = 0, tot = 0;
+    if (hasDay) { const [i0, i1] = rangeIdx(s.rise, dayB); for (let i = i0; i <= i1; i++) { tot++; const v = D.s.hd[i]; if (v >= 3 && v <= 6) ok++; } }
+    let over = 0, vs = null, ve = null, co = null, cc = null;
+    { const [i0, i1] = rangeIdx(a, b);
+      for (let i = i0; i <= i1; i++) {
+        const t = D.t0 + i * 5;
+        if (D.s.temp[i] > D.s.vent[i] + 1) over++;
+        if (D.s.v1[i] > 0 || D.s.v2[i] > 0) { if (vs == null) vs = t; ve = t + 5; }
+        const c = D.s.cur[i];
+        if (co == null && c >= 100) co = t; else if (co != null && cc == null && c < 100) cc = t;
+      } }
+    let dn = 0, dm = 0;
+    { const [i0, i1] = rangeIdx(sp.set, Math.min(s.rise, b)); let pv = 0;
+      for (let i = i0; i <= i1; i++) { const v = D.s.ldh[i] >= 0.5 ? 1 : 0; if (v && !pv) dn++; if (v) dm += 5; pv = v; } }
+    r = {
+      partial: a + 1440 > LAST + 5,
+      avg24: mean('temp', a, b), dayAvg, nightAvg,
+      dif: dayAvg != null && nightAvg != null ? dayAvg - nightAvg : null,
+      solSum: solSum(a, b),
+      hdDay: hasDay ? mean('hd', s.rise, dayB) : null,
+      hdOk: tot ? ok * 5 / 60 : null, hdPct: tot ? ok / tot * 100 : null,
+      co2Day: hasDay ? mean('co2', s.rise, dayB) : null,
+      over: over * 5 / 60,
+      vent: vs != null ? [vs, ve] : null,
+      cur: co != null ? [co, cc] : null,
+      dh: dn, dhMin: dm
+    };
+  }
+  metricMemo.set(day, r);
+  return r;
+}
+// その日の前7日間の平均（時刻は時刻どうしで平均）
+function avgMetrics(day) {
+  if (avgMemo.has(day)) return avgMemo.get(day);
+  const list = [];
+  for (let j = 1; j <= 7; j++) { const m = metrics(day - j); if (m && !m.partial) list.push(m); }
+  let r = null;
+  if (list.length) {
+    r = {};
+    MET.forEach(spec => {
+      if (spec.type === 'range') {
+        const xs = list.map(m => m[spec.k]).filter(Boolean);
+        const st = xs.length ? xs.reduce((s, x) => s + x[0] % 1440, 0) / xs.length : null;
+        const ens = xs.filter(x => x[1] != null);
+        const en = ens.length ? ens.reduce((s, x) => s + x[1] % 1440, 0) / ens.length : null;
+        r[spec.k] = st != null ? [day * 1440 + st, en != null ? day * 1440 + en : null] : null;
+      } else {
+        const xs = list.map(m => m[spec.k]).filter(v => v != null);
+        r[spec.k] = xs.length ? xs.reduce((s, v) => s + v, 0) / xs.length : null;
+      }
+    });
+  }
+  avgMemo.set(day, r);
+  return r;
+}
+function baseline(day) {
+  if (S.scmp.m === 'avg7') return { label: '7日平均', m: avgMetrics(day) };
+  if (S.scmp.m === 'date') { const cd = S.scmp.day != null ? S.scmp.day : day - 7; return { label: md(cd * 1440), m: metrics(cd) }; }
+  return { label: '前日', m: metrics(day - 1) };
+}
+const rangeTxt = r => `${hm(r[0])}〜${r[1] != null ? hm(r[1]) : ''}`;
+function renderSummary() {
+  const d = S.sumDay, m = metrics(d), base = baseline(d);
+  $('#sLbl').innerHTML = mdw(d) + `<small>${m && m.partial ? hm(LAST) + 'まで' : d === TODAY - 1 ? '昨日' : ''}</small>`;
+  $('#sPrev').disabled = !metrics(d - 1);
+  $('#sNext').disabled = d >= TODAY;
+  $$('#sCmpSeg button').forEach(b => { const on = b.dataset.c === S.scmp.m; b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); });
+  const sd = $('#sCmpDate');
+  sd.hidden = S.scmp.m !== 'date';
+  sd.min = dayStr(minDay()); sd.max = dayStr(TODAY);
+  if (S.scmp.m === 'date') sd.value = dayStr(S.scmp.day != null ? S.scmp.day : d - 7);
+  const grid = $('#sumgrid');
+  grid.innerHTML = '';
+  MET.forEach(spec => {
+    let v = '—', df = '', sub = spec.s;
+    if (m) {
+      if (spec.k === 'hdOk' && m.hdPct != null) sub = `日中${Math.round(m.hdPct)}%`;
+      if (spec.k === 'dh') sub = `夜間 計${m.dhMin}分`;
+      const bm = base.m;
+      if (spec.type === 'range') {
+        const r = m[spec.k];
+        v = r ? `${hm(r[0])}<small>〜</small>${r[1] != null ? hm(r[1]) : ''}` : 'なし';
+        const rb = bm && bm[spec.k];
+        df = rb ? `<span class="fl">${base.label} ${rangeTxt(rb)}</span>` : '';
+      } else {
+        const x = m[spec.k];
+        if (x != null) {
+          v = `${x.toFixed(spec.dg)}<small>${spec.u}</small>`;
+          const xb = bm ? bm[spec.k] : null;
+          if (xb != null) {
+            const dg = spec.k === 'dh' && S.scmp.m === 'avg7' ? 1 : spec.dg;
+            const dd = +(x - xb).toFixed(dg);
+            df = `<span class="${dd > 0 ? 'up' : dd < 0 ? 'dn' : 'fl'}">${base.label}比 ${dd > 0 ? '+' : dd < 0 ? '−' : '±'}${Math.abs(dd).toFixed(dg)}</span>`;
+          }
+        }
+      }
+    }
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'sc' + (spec.k === S.metric ? ' sel' : '');
+    b.setAttribute('aria-pressed', String(spec.k === S.metric));
+    b.innerHTML = `<span class="nm">${spec.n}<small>${sub}</small></span><span class="vr"><span class="val${spec.type === 'range' ? ' rg' : ''}">${v}</span><span class="df">${df}</span></span>`;
+    b.addEventListener('click', () => {
+      S.metric = spec.k;
+      renderSummary();
+      const tr = $('#trend').getBoundingClientRect();
+      if (tr.bottom > window.innerHeight) $('#trend').scrollIntoView({ behavior: reduceMotion() ? 'auto' : 'smooth', block: 'nearest' });
+    });
+    grid.appendChild(b);
+  });
+  renderTrend();
+}
+function renderTrend() {
+  const spec = MET.find(x => x.k === S.metric);
+  $('#trendH').textContent = `${spec.n}${spec.type === 'range' ? '' : '（' + spec.s + '）'}　7日間の推移`;
+  const svg = $('#trendSvg');
+  svg.innerHTML = '';
+  const W = Math.max(260, Math.floor($('#trend').getBoundingClientRect().width));
+  const days = [];
+  for (let d = S.sumDay - 6; d <= S.sumDay; d++) days.push(d);
+  if (spec.type === 'range') {
+    const rowH = 20, top = 4, Lm = 42, Rm = 10, a = 300, b = 1200, H = top + days.length * rowH + 22;
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.setAttribute('width', W); svg.setAttribute('height', H);
+    const XR = t => Lm + (t - a) / (b - a) * (W - Lm - Rm);
+    [360, 540, 720, 900, 1080].forEach(t => {
+      const x = XR(t);
+      sv('line', { x1: x.toFixed(1), x2: x.toFixed(1), y1: top, y2: top + days.length * rowH, class: 'gn' }, svg);
+      txt(svg, x, top + days.length * rowH + 15, hm(t), 'tl', 'middle');
+    });
+    days.forEach((d, r) => {
+      const y = top + r * rowH, m = metrics(d), sel = d === S.sumDay;
+      txt(svg, Lm - 7, y + 14, md(d * 1440), sel ? 'tl sel' : 'tl', 'end');
+      const rg = m && m[spec.k];
+      if (!rg) return;
+      const t0 = rg[0] - d * 1440, t1 = (rg[1] != null ? rg[1] : LAST) - d * 1440;
+      sv('rect', { x: XR(clamp(t0, a, b)).toFixed(1), y: y + 4, width: Math.max(3, XR(clamp(t1, a, b)) - XR(clamp(t0, a, b))).toFixed(1), height: rowH - 8, rx: 4, class: sel ? 'tb sel' : 'tb' }, svg);
+    });
+  } else {
+    const H = 150, top = 22, bot = H - 22;
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.setAttribute('width', W); svg.setAttribute('height', H);
+    const vals = days.map(d => { const m = metrics(d); return m ? m[spec.k] : null; });
+    const fin = vals.filter(v => v != null);
+    const mx = Math.max(0, ...fin), mn = Math.min(0, ...fin);
+    const Yb = v => bot - (v - mn) / ((mx - mn) || 1) * (bot - top);
+    const cw = (W - 16) / days.length, bw = Math.min(34, cw * 0.56);
+    sv('line', { x1: 8, x2: W - 8, y1: Yb(0).toFixed(1), y2: Yb(0).toFixed(1), class: 'gm' }, svg);
+    days.forEach((d, i) => {
+      const cx = 8 + cw * (i + 0.5), v = vals[i], sel = d === S.sumDay;
+      if (v != null) {
+        const y = Yb(v), y0 = Yb(0);
+        sv('rect', { x: (cx - bw / 2).toFixed(1), y: Math.min(y, y0).toFixed(1), width: bw.toFixed(1), height: Math.max(1, Math.abs(y0 - y)).toFixed(1), rx: 4, class: sel ? 'tb sel' : 'tb' }, svg);
+        txt(svg, cx, Math.min(y, y0) - 6, v.toFixed(spec.dg), sel ? 'tv sel' : 'tv', 'middle');
+      } else txt(svg, cx, bot - 6, '—', 'tv', 'middle');
+      txt(svg, cx, H - 6, md(d * 1440), sel ? 'tl sel' : 'tl', 'middle');
+    });
+  }
+}
+$('#sPrev').addEventListener('click', () => { if (metrics(S.sumDay - 1)) { S.sumDay--; renderSummary(); } });
+$('#sNext').addEventListener('click', () => { if (S.sumDay < TODAY) { S.sumDay++; renderSummary(); } });
+$$('#sCmpSeg button').forEach(b => b.addEventListener('click', () => {
+  S.scmp.m = b.dataset.c;
+  if (S.scmp.m === 'date' && S.scmp.day == null) S.scmp.day = clamp(S.sumDay - 7, minDay(), TODAY - 1);
+  renderSummary();
+}));
+$('#sCmpDate').addEventListener('change', e => {
+  const d = strDay(e.target.value);
+  if (d != null) { S.scmp.day = clamp(d, minDay(), TODAY); renderSummary(); }
+});
+
+/* ===== 装置・提案ポイント ===== */
+const devSel = $('#devSel');
+devSel.innerHTML = DEVICES.map((d, i) => `<option value="${i}">${d.name}</option>`).join('');
+devSel.addEventListener('change', () => { S.dev = +devSel.value; S.cursor = null; S.zoom = null; loadData(); renderAll(); });
+function setNotes(on) {
+  document.body.classList.toggle('notes', on);
+  $('#noteBtn').setAttribute('aria-pressed', String(on));
+  store.set('kanki-notes', on ? '1' : '0');
+}
+$('#noteBtn').addEventListener('click', () => { setNotes(!document.body.classList.contains('notes')); renderGraph(); });
+
+/* ===== 起動 ===== */
+const setHH = () => document.documentElement.style.setProperty('--hh', $('.top').offsetHeight + 'px');
+function renderAll() { updateNav(); buildLanes(); renderGraph(); renderNow(); renderUpd(); renderSummary(); }
+setNotes(store.get('kanki-notes') !== '0');
+loadData();
+S.endDay = TODAY;
+S.sumDay = TODAY - 1;
+setHH();
+renderAll();
+let lastW = window.innerWidth;
+window.addEventListener('resize', () => {
+  setHH();
+  if (window.innerWidth !== lastW) { lastW = window.innerWidth; renderGraph(); renderNow(); renderTrend(); }
+});
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { setHH(); renderGraph(); renderNow(); renderTrend(); });
+setInterval(() => {
+  if (Math.floor(nowMin() / 5) * 5 !== LAST) {
+    const oldToday = TODAY, wasLatest = isLatest();
+    loadData();
+    if (TODAY !== oldToday) {
+      if (wasLatest) S.endDay = TODAY;
+      if (S.sumDay === oldToday - 1) S.sumDay = TODAY - 1;
+      S.zoom = null;
+    }
+    updateNav(); renderGraph(); renderNow(); renderSummary();
+  }
+  renderUpd();
+}, 30000);
+})();
+</script>
+
+</body>
+</html>
